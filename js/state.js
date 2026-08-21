@@ -12,8 +12,8 @@ const SEMILLA_VERSION = 3;
 
 export const CONFIG_DEFAULT = {
   empresa: {
-    nombre: 'Fernando Martínez Parente',
-    razonSocial: 'Fernando Martínez Parente, S.A. de C.V.',
+    nombre: 'Mundo de Interiores',
+    razonSocial: 'Mundo de Interiores, S.A. de C.V.',
     tagline: 'Pisos de ingeniería y cortinería de especificación',
     rfc: 'XAXX010101000',
     telefono: '+52 55 0000 0000',

@@ -1,4 +1,4 @@
-# Cotizador · Fernando Martínez Parente
+# Cotizador · Mundo de Interiores
 
 Aplicación web para cotizar pisos de ingeniería, SPC, laminado, deck, porcelanato,
 cortinas, persianas, toldos y pérgolas, con PDF de hasta tres páginas listo para

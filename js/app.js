@@ -94,7 +94,7 @@ const btnTutorial = el('button', {
   onclick: () => arrancarTour(),
 }, icono('ayuda', 15), 'Tutorial');
 
-const iniciales = (empresa.nombre || 'FMP')
+const iniciales = (empresa.nombre || 'Mundo de Interiores')
   .split(/\s+/).map((w) => w[0]).join('').slice(0, 3).toUpperCase();
 
 const topbar = el('header', { class: 'topbar' },

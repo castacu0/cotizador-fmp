@@ -121,7 +121,13 @@ function altoPastillas(doc, textos, ancho = ANCHO) {
 // Encabezados y pie
 // ---------------------------------------------------------------------------
 
-function marcaPlaceholder(doc, x, y) {
+/** Iniciales de hasta 3 palabras del nombre de la empresa. Mismo criterio que la topbar. */
+function inicialesEmpresa(nombre) {
+  const palabras = String(nombre || '').trim().split(/\s+/).filter(Boolean);
+  return (palabras.map((w) => w[0]).join('').slice(0, 3) || 'MDI').toUpperCase();
+}
+
+function marcaPlaceholder(doc, x, y, nombreEmpresa) {
   relleno(doc, C.oroSuave);
   trazo(doc, C.oroLinea);
   doc.setLineWidth(0.3);
@@ -129,7 +135,7 @@ function marcaPlaceholder(doc, x, y) {
   doc.setFont('times', 'normal');
   doc.setFontSize(13);
   tinta(doc, C.oroTexto);
-  doc.text('FMP', x + 13, y + 14, { align: 'center' });
+  doc.text(inicialesEmpresa(nombreEmpresa), x + 13, y + 14, { align: 'center' });
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(4.4);
   tinta(doc, C.tenue);
@@ -144,9 +150,9 @@ function encabezado(L) {
 
   if (e.logoDataUrl) {
     try { doc.addImage(e.logoDataUrl, 'PNG', M, y0 - 1, 26, 26, undefined, 'FAST'); }
-    catch { marcaPlaceholder(doc, M, y0 - 1); }
+    catch { marcaPlaceholder(doc, M, y0 - 1, e.nombre); }
   } else {
-    marcaPlaceholder(doc, M, y0 - 1);
+    marcaPlaceholder(doc, M, y0 - 1, e.nombre);
   }
 
   const xt = M + 31;
