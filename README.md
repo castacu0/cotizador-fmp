@@ -1,7 +1,7 @@
 # Cotizador · Fernando Martínez Parente
 
 Aplicación web para cotizar pisos de ingeniería, SPC, laminado, deck, porcelanato,
-cortinas y persianas, con PDF de dos páginas listo para enviar al cliente.
+cortinas y persianas, con PDF de hasta tres páginas listo para enviar al cliente.
 
 No necesita instalación ni servidor: son archivos estáticos que corren en el navegador.
 
