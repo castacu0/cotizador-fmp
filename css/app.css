@@ -721,31 +721,72 @@ a { color: var(--accent); text-underline-offset: 3px; }
    nadie tenga que pelearse con el zoom del navegador. */
 
 html.texto-grande { font-size: 118%; }
+html.texto-mayor  { font-size: 136%; }
+html.texto-mayor body,
 html.texto-grande body { font-size: 17px; line-height: 1.68; }
+html.texto-mayor .small,
 html.texto-grande .small  { font-size: 15px; }
+html.texto-mayor .tiny,
 html.texto-grande .tiny   { font-size: 13.5px; }
+html.texto-mayor .lead,
 html.texto-grande .lead   { font-size: 18.5px; }
+html.texto-mayor .btn,
 html.texto-grande .btn    { padding: 14px 24px; font-size: 16px; }
 html.texto-grande .btn--sm{ padding: 10px 18px; font-size: 15px; }
+html.texto-mayor .input,
+html.texto-mayor .select,
+html.texto-mayor .textarea,
 html.texto-grande .input,
 html.texto-grande .select,
 html.texto-grande .textarea { padding: 14px 16px; font-size: 16.5px; }
+html.texto-mayor .search__input,
 html.texto-grande .search__input { padding: 20px 54px; font-size: 18px; }
+html.texto-mayor .pill,
 html.texto-grande .pill   { font-size: 14px; padding: 6px 14px; }
+html.texto-mayor .pill--sm,
 html.texto-grande .pill--sm { font-size: 13px; padding: 4px 11px; }
+html.texto-mayor .tabla,
 html.texto-grande .tabla  { font-size: 15.5px; }
+html.texto-mayor .tabla,
+html.texto-mayor .tabla td,
 html.texto-grande .tabla td { padding: 16px var(--s3); }
+html.texto-mayor .nav__item,
 html.texto-grande .nav__item { padding: 12px 20px; font-size: 16px; }
+html.texto-mayor .field__label,
 html.texto-grande .field__label { font-size: 14.5px; }
+html.texto-mayor .action__title,
 html.texto-grande .action__title { font-size: 17px; }
+html.texto-mayor .action__hint,
 html.texto-grande .action__hint  { font-size: 14px; }
+html.texto-mayor .desglose,
 html.texto-grande .desglose { font-size: 15px; }
+html.texto-mayor .chat,
 html.texto-grande .chat { width: min(440px, calc(100vw - 24px)); }
 
 .topbar__acciones { display: flex; gap: var(--s2); align-items: center; }
-.js-comodo[aria-pressed='true'] {
-  background: var(--ink); border-color: var(--ink); color: #fff;
+.tamano {
+  display: inline-flex; align-items: center; gap: 2px;
+  border: 1px solid var(--line-2); border-radius: var(--r-pill);
+  background: var(--surface); padding: 3px;
 }
+.tamano__btn {
+  appearance: none; cursor: pointer;
+  display: inline-flex; align-items: baseline; gap: 1px;
+  min-width: 40px; height: 32px; justify-content: center;
+  border: 0; border-radius: 4px; background: transparent; color: var(--ink);
+  font-weight: 600; font-size: 14px; line-height: 1;
+  transition: background .16s var(--ease), color .16s var(--ease);
+}
+.tamano__btn--mas { font-size: 17px; }
+.tamano__signo { font-size: 13px; font-weight: 700; }
+.tamano__btn:hover:not(:disabled) { background: var(--surface-3); }
+.tamano__btn:disabled { opacity: .32; cursor: default; }
+.tamano__etq {
+  font-size: 10.5px; letter-spacing: .09em; text-transform: uppercase;
+  color: var(--ink-4); font-weight: 600; padding: 0 6px; min-width: 52px; text-align: center;
+}
+html.texto-grande .tamano__btn { min-width: 46px; height: 36px; font-size: 15px; }
+html.texto-mayor  .tamano__btn { min-width: 50px; height: 40px; font-size: 16px; }
 
 /* ======================================================== asistente */
 
@@ -866,3 +907,26 @@ html.texto-grande .chat { width: min(440px, calc(100vw - 24px)); }
   .nav { margin-left: 0; order: 3; width: 100%; }
   .topbar__acciones { margin-left: auto; }
 }
+
+/* El nivel Mayor hereda todo lo de Grande y sube otro escalón donde importa. */
+html.texto-mayor body { font-size: 19px; line-height: 1.7; }
+html.texto-mayor .small  { font-size: 16.5px; }
+html.texto-mayor .tiny   { font-size: 15px; }
+html.texto-mayor .lead   { font-size: 20.5px; }
+html.texto-mayor .btn    { padding: 16px 26px; font-size: 17.5px; }
+html.texto-mayor .btn--sm{ padding: 12px 20px; font-size: 16.5px; }
+html.texto-mayor .input,
+html.texto-mayor .select,
+html.texto-mayor .textarea { padding: 16px 18px; font-size: 18px; }
+html.texto-mayor .search__input { padding: 22px 56px; font-size: 19.5px; }
+html.texto-mayor .pill   { font-size: 15px; padding: 7px 15px; }
+html.texto-mayor .pill--sm { font-size: 14px; padding: 5px 12px; }
+html.texto-mayor .tabla  { font-size: 17px; }
+html.texto-mayor .tabla td { padding: 18px var(--s3); }
+html.texto-mayor .nav__item { padding: 14px 22px; font-size: 17.5px; }
+html.texto-mayor .field__label { font-size: 16px; }
+html.texto-mayor .action__title { font-size: 18.5px; }
+html.texto-mayor .action__hint  { font-size: 15.5px; }
+html.texto-mayor .desglose { font-size: 16.5px; }
+html.texto-mayor .display  { font-size: clamp(34px, 4.6vw, 48px); }
+html.texto-mayor .title    { font-size: 28px; }

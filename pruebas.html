@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pruebas del motor de cálculo · Cotizador FMP</title>
-<link rel="stylesheet" href="css/app.css?v=12">
+<link rel="stylesheet" href="css/app.css?v=14">
 <style>
   .main{max-width:920px}
   .t{width:100%;border-collapse:collapse;font-size:13.5px}
@@ -545,6 +545,22 @@ P('Asistente', 'Reconoce las preguntas más comunes del equipo', () => {
   return { ok: fallos.length === 0,
            obtenido: fallos.length ? fallos.map((f) => f[0]).join(' | ') : `${casos.length} de ${casos.length}`,
            esperado: `${casos.length} de ${casos.length}` };
+});
+P('Asistente', 'Reconoce las preguntas de Hunter Douglas', () => {
+  const casos = ['que es powerview', 'que lineas maneja hunter douglas', 'como activo la garantia',
+                 'donde consigo los catalogos', 'que es twinline', 'como evito error de medidas'];
+  const fallos = casos.filter((q) => {
+    const r = responder(q);
+    return !r.length || r[0].tema !== 'Hunter Douglas';
+  });
+  return { ok: fallos.length === 0,
+           obtenido: fallos.length ? fallos.join(' | ') : `${casos.length} de ${casos.length}`,
+           esperado: `${casos.length} de ${casos.length}` };
+});
+P('Asistente', 'Aclara que los precios cargados son de demostración', () => {
+  const r = responder('los precios que veo son los reales de hunter douglas');
+  return { ok: r.length > 0 && /demostraci/i.test(r[0].r),
+           obtenido: r[0]?.p ?? 'sin respuesta', esperado: 'aclara que son de demostración' };
 });
 P('Asistente', 'No inventa: sin coincidencia devuelve vacío', () => {
   const r = responder('cual es la capital de mongolia');

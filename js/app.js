@@ -34,25 +34,54 @@ const nav = el('nav', { class: 'nav' },
     onclick: () => { location.hash = r.hash; },
   }, r.etiqueta)));
 
-// --------------------------------------------------------------------------- texto grande
+// --------------------------------------------------------------------------- tamaño de texto
 
-const LLAVE_COMODO = 'fmp.textoGrande';
-const comodoActivo = () => localStorage.getItem(LLAVE_COMODO) === '1';
+// Tres niveles. Un interruptor de encendido y apagado obliga a adivinar qué hace;
+// A menos y A más se entienden sin explicación y dejan elegir el punto cómodo.
+const LLAVE_TAMANO = 'fmp.tamanoTexto';
+const NIVELES = ['normal', 'grande', 'mayor'];
 
-function aplicarComodo(activo) {
-  document.documentElement.classList.toggle('texto-grande', activo);
-  localStorage.setItem(LLAVE_COMODO, activo ? '1' : '0');
-  const b = $('.js-comodo');
-  if (b) {
-    b.setAttribute('aria-pressed', String(activo));
-    b.title = activo ? 'Volver al tamaño normal' : 'Agrandar el texto de toda la aplicación';
-  }
+const nivelGuardado = () => {
+  const v = localStorage.getItem(LLAVE_TAMANO);
+  return NIVELES.includes(v) ? v : 'normal';
+};
+
+let nivelActual = nivelGuardado();
+
+function aplicarTamano(nivel) {
+  nivelActual = NIVELES.includes(nivel) ? nivel : 'normal';
+  const raiz = document.documentElement;
+  raiz.classList.remove('texto-grande', 'texto-mayor');
+  if (nivelActual === 'grande') raiz.classList.add('texto-grande');
+  if (nivelActual === 'mayor') raiz.classList.add('texto-mayor');
+  localStorage.setItem(LLAVE_TAMANO, nivelActual);
+
+  const i = NIVELES.indexOf(nivelActual);
+  const menos = $('.js-menos');
+  const mas = $('.js-mas');
+  const etq = $('.js-tamano-etq');
+  if (menos) menos.disabled = i === 0;
+  if (mas) mas.disabled = i === NIVELES.length - 1;
+  if (etq) etq.textContent = ['Normal', 'Grande', 'Mayor'][i];
 }
 
-const btnComodo = el('button', {
-  class: 'btn btn--sm js-comodo', 'aria-pressed': String(comodoActivo()),
-  onclick: () => aplicarComodo(!document.documentElement.classList.contains('texto-grande')),
-}, icono('regla', 15), 'Texto grande');
+const cambiarTamano = (paso) => {
+  const i = NIVELES.indexOf(nivelActual);
+  aplicarTamano(NIVELES[Math.min(Math.max(i + paso, 0), NIVELES.length - 1)]);
+};
+
+const controlTamano = el('div', { class: 'tamano', role: 'group', 'aria-label': 'Tamaño del texto' },
+  el('button', {
+    class: 'tamano__btn js-menos', title: 'Reducir el tamaño del texto',
+    'aria-label': 'Reducir el tamaño del texto',
+    onclick: () => cambiarTamano(-1),
+  }, 'A', el('span', { class: 'tamano__signo' }, '−')),
+  el('span', { class: 'tamano__etq js-tamano-etq' }, 'Normal'),
+  el('button', {
+    class: 'tamano__btn tamano__btn--mas js-mas', title: 'Agrandar el texto de toda la aplicación',
+    'aria-label': 'Agrandar el texto de toda la aplicación',
+    onclick: () => cambiarTamano(1),
+  }, 'A', el('span', { class: 'tamano__signo' }, '+')));
 
 const btnAsistente = el('button', {
   class: 'btn btn--sm js-asistente', 'aria-expanded': 'false',
@@ -78,7 +107,7 @@ const topbar = el('header', { class: 'topbar' },
       el('span', { class: 'brand__name', style: 'display:block' }, empresa.nombre),
       el('span', { class: 'brand__sub', style: 'display:block' }, 'Cotizador'))),
   nav,
-  el('div', { class: 'topbar__acciones' }, btnComodo, btnAsistente, btnTutorial));
+  el('div', { class: 'topbar__acciones' }, controlTamano, btnAsistente, btnTutorial));
 
 const main = el('main', { class: 'main' });
 app.append(topbar, main);
@@ -107,7 +136,7 @@ function navegar() {
   window.scrollTo({ top: 0, behavior: 'instant' });
 }
 
-aplicarComodo(comodoActivo());
+aplicarTamano(nivelGuardado());
 
 window.addEventListener('hashchange', navegar);
 // Las vistas piden un redibujo completo con este evento, en vez de recargar la página.
@@ -239,7 +268,7 @@ function arrancarTour() {
     {
       titulo: 'Listo',
       texto: 'Puedes repetir este recorrido cuando quieras desde el botón Tutorial. ' +
-             'Y si la letra se ve chica, el botón "Texto grande" agranda toda la aplicación.',
+             'Y si la letra se ve chica, los botones A menos y A más de arriba cambian el tamaño de toda la aplicación.',
       antes: () => irA('#/cotizador'),
     },
   ];

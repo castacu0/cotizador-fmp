@@ -885,10 +885,11 @@ export function generarPDF(cot, totales, config, { modo = 'descargar', maxPagina
   bloqueTotales(L, totales);
 
   // --- Anexo técnico ---
-  // Se abre página nueva solo si la actual ya trae contenido. Forzarlo siempre
-  // dejaba una página con dos bloques arriba y el resto en blanco.
-  const yaEmpezada = L.y > M + 70;
-  if (yaEmpezada && L.pagina < L.maxPaginas) {
+  // Se abre página nueva solo si ya no queda espacio útil. La regla anterior
+  // miraba cuánto llevaba escrito, no cuánto quedaba, y dejaba páginas con dos
+  // bloques arriba y el resto en blanco.
+  const espacioRestante = LIMITE - L.y;
+  if (espacioRestante < 100 && L.pagina < L.maxPaginas) {
     nuevaPagina(L, 'Anexo técnico y condiciones');
   } else {
     L.y += 10;

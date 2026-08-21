@@ -246,6 +246,84 @@ export const CONOCIMIENTO = [
     r: 'El pino es madera blanda: marca con el tacón de una silla y hasta con la uña. Se vende por precio y hay que advertirle al cliente que se va a marcar. Encino y roble son duras, con veta abierta, y aguantan tránsito. Entre encino y roble la diferencia es sobre todo de tono y disponibilidad: el roble europeo llega en formatos más anchos y largos, por eso cuesta más y tarda más.',
   },
 
+
+  // ---------------------------------------------------------------- Hunter Douglas
+  // Referencia para el equipo de un distribuidor. Los datos de línea y de contacto
+  // son los publicados por Hunter Douglas México. Las especificaciones finales y los
+  // precios se confirman siempre contra el catálogo vigente del proveedor.
+  {
+    tema: 'Hunter Douglas',
+    claves: 'hunter douglas hd lineas productos que vende marca proveedor catalogo',
+    p: '¿Qué líneas maneja Hunter Douglas?',
+    r: 'En México, Hunter Douglas cubre cortinas y persianas de interior, toldos, pérgolas, motorización y productos arquitectónicos. Dentro de interiores, las líneas más conocidas son Silhouette, Pirouette, Duette, Luminette, Roller Quantum y Twinline. La motorización va bajo la plataforma PowerView. El catálogo vigente y las fichas están en hunterdouglas.com.mx, sección Productos y Catálogos.',
+  },
+  {
+    tema: 'Hunter Douglas',
+    claves: 'powerview motorizacion motor pebble app control remoto automatizar escenas',
+    p: '¿Qué es PowerView y cuándo lo vendo?',
+    r: 'PowerView es la plataforma de motorización de Hunter Douglas. Se opera con el control Pebble, desde el celular o la tablet, y permite programar escenas y horarios. Se vende solo en tres casos claros: ventanales altos donde no se alcanza la cadena, salas o recámaras con muchas ventanas que se abren juntas, y clientes que ya tienen domótica. Fuera de eso, encarece sin resolver nada. Confirma compatibilidad y accesorios contra el brochure PowerView vigente.',
+  },
+  {
+    tema: 'Hunter Douglas',
+    claves: 'silhouette pirouette duette luminette cual diferencia recomiendo linea',
+    p: '¿Cuál línea de Hunter Douglas recomiendo?',
+    r: 'Como guía rápida: Silhouette para gradación de luz con vista suavizada, Pirouette cuando se quiere el aspecto de tela con control de privacidad, Duette cuando manda el aislamiento térmico o acústico, Luminette para ventanales y puertas corredizas grandes, Roller Quantum cuando se busca enrollable con amplia gama de telas, y Twinline cuando el cliente pide el efecto de bandas alternas opacas y translúcidas. Antes de cotizar, valida disponibilidad y medidas máximas en el catálogo vigente.',
+  },
+  {
+    tema: 'Hunter Douglas',
+    claves: 'twinline zebra bandas doble vision enrollable alternas',
+    p: '¿Qué es Twinline?',
+    r: 'Es la cortina de doble tela con bandas horizontales opacas y translúcidas que se sobreponen entre sí. Al girarlas se gradúa la luz sin perder del todo la vista al exterior. Es la que el cliente suele pedir como "zebra" o "doble visión". Se vende bien en comedores y salas de televisión.',
+  },
+  {
+    tema: 'Hunter Douglas',
+    claves: 'roller quantum enrollable telas coleccion opciones',
+    p: '¿Qué es Roller Quantum?',
+    r: 'Es la colección de enrollables de Hunter Douglas, con una gama amplia de telas que va desde tejidos translúcidos hasta telas opacas. Es la línea de entrada más versátil: sirve para casi cualquier ambiente y permite ajustar el nivel de privacidad eligiendo la tela, no el sistema.',
+  },
+  {
+    tema: 'Hunter Douglas',
+    claves: 'garantia activar registrar producto postventa reclamacion',
+    p: '¿Cómo se activa la garantía de un producto Hunter Douglas?',
+    r: 'En hunterdouglas.com.mx, sección Servicio al cliente, hay una opción de Activar Garantía. Conviene activarla al momento de la instalación, no cuando aparece el problema, y dejar el comprobante en el expediente del cliente. Para fallas posteriores, la misma sección tiene Servicio Postventa. Guarda siempre la factura y el número de pedido: sin eso el trámite se atora.',
+  },
+  {
+    tema: 'Hunter Douglas',
+    claves: 'catalogo hunter douglas descargar pdf brochure fichas donde',
+    p: '¿Dónde consigo los catálogos de Hunter Douglas?',
+    r: 'En hunterdouglas.com.mx, sección Catálogos. Están el Catálogo de Productos, el brochure de PowerView, Tendencias, el de Roller Quantum y el de Twinline, entre otros. Cada uno se puede ver en línea o pedir por correo en PDF. Vale la pena tener descargada la versión vigente en la computadora, porque en casa del cliente no siempre hay buena señal.',
+  },
+  {
+    tema: 'Hunter Douglas',
+    claves: 'contacto hunter douglas telefono correo soporte proveedor pedido',
+    p: '¿Cómo contacto a Hunter Douglas México?',
+    r: 'Teléfono 800 148 68 37 y sitio hunterdouglas.com.mx. También atienden por WhatsApp desde su página de Facebook y en redes como @hunterdouglasmexicooficial. Para temas de distribuidor, lo más rápido suele ser tu contacto comercial asignado antes que el conmutador general.',
+  },
+  {
+    tema: 'Hunter Douglas',
+    claves: 'tiendas distribuidores buscar tienda donde comprar showroom',
+    p: 'Un cliente pregunta por otra tienda, ¿qué le digo?',
+    r: 'Hunter Douglas tiene un buscador de tiendas en su sitio, con distribuidores por ciudad y distancia. Si el cliente ya llegó contigo, no lo mandes ahí: el buscador existe para captar, no para repartir. Úsalo tú cuando necesites saber qué cobertura hay en una plaza donde no operas.',
+  },
+  {
+    tema: 'Hunter Douglas',
+    claves: 'toldos pergolas exterior hunter douglas arquitectura',
+    p: '¿Hunter Douglas también hace toldos y pérgolas?',
+    r: 'Sí. Su sección de Productos incluye toldos, pérgolas y motorización, además de la división de Arquitectura para proyectos de fachada. Para exteriores, lo que define el precio no es la lona sino la estructura, el anclaje y el automatismo. En esta aplicación los toldos y pérgolas se cotizan por área de sombra con mínimo de 4 m² por equipo.',
+  },
+  {
+    tema: 'Hunter Douglas',
+    claves: 'precio catalogo demostracion real importar lista proveedor hd',
+    p: 'Los precios que veo aquí, ¿son los de Hunter Douglas?',
+    r: 'No. El catálogo cargado es de demostración con precios de referencia de mercado, y sirve para conocer la herramienta. Los precios reales se cargan desde Ajustes, importando la lista del proveedor en Excel. Mientras no se haga eso, ninguna cotización de aquí debe enviarse a un cliente.',
+  },
+  {
+    tema: 'Hunter Douglas',
+    claves: 'medidas levantamiento medir ventana mal medida error fabricacion',
+    p: '¿Cómo evito un error de medidas en producto a medida?',
+    r: 'Un producto hecho a medida no se devuelve. Tres reglas: mide siempre en tres puntos (arriba, en medio y abajo) y usa la menor si va dentro del vano; anota si la instalación es dentro o fuera del vano, porque cambia el cálculo; y confirma escuadre, porque un vano fuera de escuadra deja luz por los lados. Si el levantamiento lo hizo el cliente, déjalo por escrito en la cotización: la aplicación ya imprime esa condición en el anexo.',
+  },
+
   // ---------------------------------------------------------------- soporte
   {
     tema: 'Soporte',

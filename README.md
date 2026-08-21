@@ -37,8 +37,8 @@ El cuello de botella no es el precio por metro, es todo lo que va alrededor:
 6. **Ajustes**: quién usa el equipo, datos de la empresa, margen, IVA, tipo de cambio,
    tarifas e importación del catálogo.
 
-Arriba a la derecha hay tres botones: **Texto grande** agranda toda la interfaz,
-**Dudas** abre el asistente y **Tutorial** hace un recorrido guiado de quince pasos.
+Arriba a la derecha están: el control **A− / A+** con tres tamaños de texto,
+**Dudas** que abre el asistente y **Tutorial** que hace un recorrido guiado de quince pasos.
 El botón **Cargar ejemplo** arma una cotización completa de hotel para ver la aplicación funcionando.
 
 Atajos: `/` enfoca el buscador, `⌘K` o `Ctrl+K` va al cotizador y busca.
@@ -75,9 +75,10 @@ el navegador. Conviene hacerlo cada vez que cambien precios y el primer día de 
 
 Cesar Castañón · WhatsApp 55 7882 3635 · cesar@castacu0.com
 
-Dentro de la aplicación, el botón **Dudas** abre un asistente con las preguntas más
-comunes ya respondidas. No es un modelo de lenguaje: responde de una base de conocimiento
-curada y, cuando no tiene la respuesta, ofrece el contacto directo en vez de inventar.
+Dentro de la aplicación, el botón **Dudas** abre un asistente con 50 respuestas cargadas,
+incluidas las de las líneas Hunter Douglas. No es un modelo de lenguaje: responde de una
+base de conocimiento curada y, cuando no tiene la respuesta, ofrece el contacto directo
+en vez de inventar.
 
 ---
 
@@ -123,7 +124,7 @@ js/
   ui.js               Componentes compartidos
   format.js           Formato es-MX y utilidades de DOM
   views/              Cotizador, catálogo, ahorro, servicios, ayuda y ajustes
-pruebas.html          83 pruebas del motor de cálculo, importación y buscador
+pruebas.html          85 pruebas del motor de cálculo, importación y buscador
 servidor-dev.py       Servidor local sin caché para desarrollo
 vendor/               jsPDF y SheetJS, incluidos localmente
 ```
