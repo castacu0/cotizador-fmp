@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pruebas del motor de cálculo · Cotizador FMP</title>
-<link rel="stylesheet" href="css/app.css?v=5">
+<link rel="stylesheet" href="css/app.css?v=9">
 <style>
   .main{max-width:920px}
   .t{width:100%;border-collapse:collapse;font-size:13.5px}
@@ -408,6 +408,40 @@ P('Importación', 'Avisa cuando un piso llega sin m² por caja', () => {
                         sugerirMapeo(['Nombre', 'Precio', 'Categoria']));
   return { ok: r.avisos.some((a) => a.includes('m² por caja')), obtenido: r.avisos[0] ?? 'sin aviso',
            esperado: 'aviso de caja' };
+});
+P('Importación', 'Con "Nombre" y "Nombre ingles" cada una va a su campo', () => {
+  const m = sugerirMapeo(['SKU', 'Nombre', 'Nombre ingles', 'Precio', 'Categoria']);
+  return { ok: m.nombre === 'Nombre' && m.nombreEn === 'Nombre ingles',
+           obtenido: `nombre=${m.nombre} · ingles=${m.nombreEn}`,
+           esperado: 'nombre=Nombre · ingles=Nombre ingles' };
+});
+P('Importación', 'Una sola columna "Nombre" no se la roba el campo en inglés', () => {
+  const m = sugerirMapeo(['Nombre', 'Precio', 'Categoria']);
+  return { ok: m.nombre === 'Nombre' && !m.nombreEn,
+           obtenido: `nombre=${m.nombre} · ingles=${m.nombreEn ?? 'ninguna'}`,
+           esperado: 'nombre=Nombre · ingles=ninguna' };
+});
+P('Importación', '"Ancho mm" y "Ancho rollo m" no se confunden', () => {
+  const m = sugerirMapeo(['Nombre', 'Precio', 'Ancho mm', 'Ancho rollo m']);
+  return { ok: m.anchoMm === 'Ancho mm' && m.anchoRolloM === 'Ancho rollo m',
+           obtenido: `ancho=${m.anchoMm} · rollo=${m.anchoRolloM}`,
+           esperado: 'ancho=Ancho mm · rollo=Ancho rollo m' };
+});
+P('Buscador', 'Se puede buscar por el nombre en inglés del material', () => {
+  const r = buscarProductos(CATALOGO_DEMO, 'roller shade', {});
+  return { ok: r.length >= 1 && r.every((x) => x.producto.categoria === 'persiana'),
+           obtenido: `${r.length} resultado(s)`, esperado: 'persianas enrollables' };
+});
+P('Buscador', '"engineered oak" llega a la duela de encino', () => {
+  const r = buscarProductos(CATALOGO_DEMO, 'engineered oak', {});
+  return { ok: r.length >= 1 && r[0].producto.especie === 'Encino',
+           obtenido: r[0]?.producto.nombre ?? 'ninguno', esperado: 'duela de encino' };
+});
+P('Catálogo', 'Todo producto trae su nombre en inglés', () => {
+  const sin = CATALOGO_DEMO.filter((p) => !p.nombreEn);
+  return { ok: sin.length === 0,
+           obtenido: sin.length ? sin.map((p) => p.sku).join(', ') : `${CATALOGO_DEMO.length} con alias`,
+           esperado: `${CATALOGO_DEMO.length} con alias` };
 });
 P('Importación', 'La plantilla CSV trae las columnas que el lector espera', () => {
   const cols = plantillaCSV().split('\n')[0].split(',');

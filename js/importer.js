@@ -6,6 +6,7 @@ import { normalizar, uid } from './format.js';
 // Alias de encabezados. Se compara contra el texto normalizado de la columna.
 const ALIAS = {
   sku:         ['sku', 'codigo', 'clave', 'code', 'modelo', 'no parte', 'referencia'],
+  nombreEn:    ['nombre ingles', 'nombre en ingles', 'english name', 'nombre en', 'ingles', 'english'],
   nombre:      ['nombre', 'descripcion', 'producto', 'articulo', 'name', 'description', 'item'],
   categoria:   ['categoria', 'familia', 'linea', 'tipo', 'category', 'grupo'],
   especie:     ['especie', 'material', 'madera', 'species', 'sustrato'],
@@ -62,26 +63,41 @@ export function normalizarCategoria(valor) {
   return null;
 }
 
-/** Propone un mapeo columna -> campo comparando encabezados contra los alias. */
+/**
+ * Propone un mapeo columna -> campo.
+ *
+ * Se puntúan TODOS los pares posibles y luego se asignan de mayor a menor.
+ * Asignar campo por campo en orden era frágil: con las columnas "Nombre" y
+ * "Nombre ingles", el primer campo en la lista se llevaba la columna equivocada.
+ * El alias más largo gana, porque es el más específico.
+ */
 export function sugerirMapeo(columnas) {
-  const mapeo = {};
-  const usadas = new Set();
+  const pares = [];
+
   for (const [campo, alias] of Object.entries(ALIAS)) {
-    let mejor = null;
-    let mejorPuntaje = 0;
     for (const col of columnas) {
-      if (usadas.has(col)) continue;
       const n = normalizar(col);
       if (!n) continue;
+      let mejor = 0;
       for (const a of alias) {
         let puntaje = 0;
-        if (n === a) puntaje = 100;
-        else if (n.startsWith(a) || a.startsWith(n)) puntaje = 70;
-        else if (n.includes(a)) puntaje = 50;
-        if (puntaje > mejorPuntaje) { mejorPuntaje = puntaje; mejor = col; }
+        if (n === a) puntaje = 100 + a.length;                       // coincidencia exacta
+        else if (n.includes(a)) puntaje = 70 + Math.min(a.length, 20); // la columna contiene el alias
+        else if (a.includes(n) && n.length >= 5) puntaje = 40;        // al revés: mucho más débil
+        if (puntaje > mejor) mejor = puntaje;
       }
+      if (mejor >= 40) pares.push({ campo, col, puntaje: mejor });
     }
-    if (mejor && mejorPuntaje >= 50) { mapeo[campo] = mejor; usadas.add(mejor); }
+  }
+
+  pares.sort((a, b) => b.puntaje - a.puntaje);
+
+  const mapeo = {};
+  const usadas = new Set();
+  for (const par of pares) {
+    if (mapeo[par.campo] || usadas.has(par.col)) continue;
+    mapeo[par.campo] = par.col;
+    usadas.add(par.col);
   }
   return mapeo;
 }
@@ -209,6 +225,7 @@ export function mapearFilas(filas, mapeo, opciones = {}) {
       id: uid('prod'),
       sku,
       nombre,
+      nombreEn: String(v('nombreEn') ?? '').trim() || undefined,
       categoria,
       especie: String(v('especie') ?? '').trim() || undefined,
       espesorMm: aNumero(v('espesorMm')) ?? undefined,
@@ -237,16 +254,16 @@ export function mapearFilas(filas, mapeo, opciones = {}) {
 
 /** Plantilla CSV para que la empresa acomode su Excel antes de importar. */
 export function plantillaCSV() {
-  const cols = ['SKU', 'Nombre', 'Categoria', 'Especie', 'Espesor mm', 'Ancho mm', 'Largo mm',
+  const cols = ['SKU', 'Nombre', 'Nombre ingles', 'Categoria', 'Especie', 'Espesor mm', 'Ancho mm', 'Largo mm',
     'Capa noble mm', 'Acabado', 'Color', 'Tela', 'Ancho rollo m', 'M2 por caja', 'Precio',
     'Moneda', 'Unidad', 'Origen', 'Importado', 'Lead time dias', 'Stock', 'Notas'];
   const ejemplos = [
-    ['DI-ENC-14-220', 'Duela de ingenieria Encino Premium', 'duela-ingenieria', 'Encino', 14, 220,
+    ['DI-ENC-14-220', 'Duela de ingenieria Encino Premium', 'Oiled Engineered Oak Flooring', 'duela-ingenieria', 'Encino', 14, 220,
       2200, 3, 'Aceitado mate premium', 'Encino natural', '', '', 2.42, 1690, 'MXN', 'm2',
       'Mexico', 'No', 5, 420, 'Admite 2 relijados'],
-    ['CORT-BO-HOT', 'Blackout hotelero retardante de flama', 'cortina', '', '', '', '', '', 'Mate',
+    ['CORT-BO-HOT', 'Blackout hotelero retardante de flama', 'Flame Retardant Hotel Blackout Drapery', 'cortina', '', '', '', '', '', 'Mate',
       'Arena', 'Poliester FR', 2.9, '', 340, 'MXN', 'ml', 'Turquia', 'Si', 35, 1400, 'NFPA 701'],
-    ['PER-ENR-SCR3', 'Persiana enrollable Screen 3%', 'persiana', '', '', '', '', '', 'Screen 3%',
+    ['PER-ENR-SCR3', 'Persiana enrollable Screen 3%', '3% Solar Screen Roller Shade', 'persiana', '', '', '', '', '', 'Screen 3%',
       'Gris carbon', 'Fibra de vidrio', '', '', 760, 'MXN', 'm2', 'Mexico', 'No', 12, 0, 'A medida'],
   ];
   const esc = (c) => (/[",;\n]/.test(String(c)) ? `"${String(c).replace(/"/g, '""')}"` : String(c));
@@ -254,7 +271,7 @@ export function plantillaCSV() {
 }
 
 export function catalogoACSV(catalogo) {
-  const cols = ['sku', 'nombre', 'categoria', 'especie', 'espesorMm', 'anchoMm', 'largoMm',
+  const cols = ['sku', 'nombre', 'nombreEn', 'categoria', 'especie', 'espesorMm', 'anchoMm', 'largoMm',
     'capaNobleMm', 'acabado', 'color', 'tela', 'anchoRolloM', 'm2PorCaja', 'precio', 'moneda',
     'unidad', 'origen', 'importado', 'leadTimeDias', 'stock', 'notas'];
   const esc = (c) => (/[",;\n]/.test(String(c ?? '')) ? `"${String(c).replace(/"/g, '""')}"` : String(c ?? ''));

@@ -8,14 +8,18 @@ import { cargarEjemplo, hayDatosParaEjemplo } from './demo.js';
 
 import * as Cotizador from './views/cotizador.js';
 import * as Catalogo from './views/catalogo.js';
+import * as Ahorro from './views/ahorro.js';
+import * as Servicios from './views/servicios.js';
 import * as Ayuda from './views/ayuda.js';
 import * as Ajustes from './views/ajustes.js';
 
 const RUTAS = [
-  { hash: '#/cotizador', etiqueta: 'Cotizar',  vista: Cotizador },
-  { hash: '#/catalogo',  etiqueta: 'Catálogo', vista: Catalogo },
-  { hash: '#/ayuda',     etiqueta: 'Ayuda',    vista: Ayuda },
-  { hash: '#/ajustes',   etiqueta: 'Ajustes',  vista: Ajustes },
+  { hash: '#/cotizador', etiqueta: 'Cotizar',   vista: Cotizador },
+  { hash: '#/catalogo',  etiqueta: 'Catálogo',  vista: Catalogo },
+  { hash: '#/ahorro',    etiqueta: 'Ahorro',    vista: Ahorro },
+  { hash: '#/servicios', etiqueta: 'Servicios', vista: Servicios },
+  { hash: '#/ayuda',     etiqueta: 'Ayuda',     vista: Ayuda },
+  { hash: '#/ajustes',   etiqueta: 'Ajustes',   vista: Ajustes },
 ];
 
 S.cargar();
@@ -155,8 +159,8 @@ function arrancarTour() {
     },
     {
       titulo: 'El PDF, en un clic',
-      texto: 'Dos páginas exactas: propuesta con gráfica de inversión, y anexo con especificaciones, ' +
-             'tiempos de entrega, esquema de pago y condiciones. Listo para enviar.',
+      texto: 'Hasta tres páginas: propuesta con gráfica de inversión, anexo técnico y condiciones. ' +
+             'Al terminar se abre el centro de envío con el mensaje ya escrito para correo o WhatsApp.',
       selector: '.js-pdf-lateral', posicion: 'izquierda',
     },
     {
@@ -167,10 +171,24 @@ function arrancarTour() {
       selector: '.view header .row', posicion: 'abajo', espera: 260,
     },
     {
+      titulo: 'El tablero de dirección',
+      texto: 'Cuánto ha ahorrado la empresa, con qué margen se está cotizando y quién tocó cada precio. ' +
+             'Los supuestos del cálculo son suyos y se editan ahí mismo.',
+      antes: () => irA('#/ahorro'),
+      selector: '.view header', posicion: 'abajo', espera: 260,
+    },
+    {
       titulo: 'Capacitación para el equipo',
       texto: 'Las fórmulas explicadas, qué recomendar según el proyecto, y los errores que cuestan dinero. ' +
              'Un asesor nuevo puede consultar aquí en vez de preguntar.',
       antes: () => irA('#/ayuda'),
+      selector: '.view header', posicion: 'abajo', espera: 260,
+    },
+    {
+      titulo: 'Qué incluye el servicio',
+      texto: 'La lista completa de lo que hace la herramienta hoy y lo que entra en la Fase 2, ' +
+             'sin letras chiquitas. Úsala cuando el equipo pregunte si algo se puede.',
+      antes: () => irA('#/servicios'),
       selector: '.view header', posicion: 'abajo', espera: 260,
     },
     {

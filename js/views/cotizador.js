@@ -6,6 +6,7 @@ import { CATEGORIAS, PATRONES, PLIEGUES, calcularPartida, calcularTotales,
          estimarPerimetro, leadTimeProducto, precioBaseMXN } from '../pricing.js';
 import { generarPDF } from '../pdf.js';
 import { cargarEjemplo, hayDatosParaEjemplo } from '../demo.js';
+import { PLANTILLAS, armarMensaje, telefonoWhatsApp } from '../mensajes.js';
 import { icono, accion, desplegable, campo, entrada, selector, casilla, pastillasToggle,
          abrirModal, cerrarModal, confirmar, avisar, vacio, nota } from '../ui.js';
 
@@ -777,17 +778,11 @@ function panelResumen() {
               icono('pdf', 15), 'Descargar PDF'),
             el('button', { class: 'btn btn--block btn--sm', onclick: previsualizarPDF },
               'Ver antes de descargar'),
-            el('div', { class: 'row row--tight', style: 'flex-wrap:nowrap;gap:8px' },
-              el('button', {
-                class: 'btn btn--sm', style: 'flex:1',
-                title: 'Abre WhatsApp con el mensaje ya escrito. El PDF se adjunta a mano.',
-                onclick: () => compartir('whatsapp', totales),
-              }, 'WhatsApp'),
-              el('button', {
-                class: 'btn btn--sm', style: 'flex:1',
-                title: 'Abre tu correo con el asunto y el cuerpo ya escritos.',
-                onclick: () => compartir('correo', totales),
-              }, 'Correo'))))
+            el('button', {
+              class: 'btn btn--block btn--sm',
+              title: 'Plantillas de envío y de seguimiento, listas para mandar',
+              onclick: () => abrirEnvio(totales),
+            }, icono('copiar', 14), 'Mensajes y seguimiento')))
       : null);
 }
 
@@ -836,10 +831,11 @@ async function exportarPDF() {
   if (!datos) return;
   if (!(await confirmarSiPierde(datos.totales))) return;
   try {
-    const { nombre } = generarPDF(datos.cot, datos.totales, datos.config);
+    const { nombre, paginas } = generarPDF(datos.cot, datos.totales, datos.config);
     S.archivarCotizacion(datos.totales);
-    avisar(`PDF generado: ${nombre}`);
+    avisar(`PDF de ${paginas} página(s) generado`);
     refrescarPartidas();
+    setTimeout(() => abrirEnvio(datos.totales, { recienGenerado: true, archivo: nombre }), 420);
   } catch (err) {
     console.error(err);
     avisar('No se pudo generar el PDF. Revisa la consola.', 'err');
@@ -852,7 +848,7 @@ async function previsualizarPDF() {
   if (!(await confirmarSiPierde(datos.totales))) return;
   try {
     const { url } = generarPDF(datos.cot, datos.totales, datos.config, { modo: 'url' });
-    abrirModal({ titulo: 'Vista previa', ancho: true, subtitulo: 'Dos páginas. Revisa antes de enviarlo al cliente.' },
+    abrirModal({ titulo: 'Vista previa', ancho: true, subtitulo: 'Revisa antes de enviarlo al cliente. Máximo tres páginas.' },
       el('iframe', { src: url, style: 'width:100%;height:70vh;border:1px solid var(--line);border-radius:10px' }),
       [el('button', { class: 'btn', onclick: cerrarModal }, 'Cerrar'),
        el('button', { class: 'btn btn--primary', onclick: () => { cerrarModal(); exportarPDF(); } }, 'Descargar')]);
@@ -863,36 +859,94 @@ async function previsualizarPDF() {
   }
 }
 
-/** Abre WhatsApp o el correo con el mensaje ya redactado. El PDF se adjunta a mano. */
-function compartir(canal, totales) {
+/**
+ * Centro de envío. Aparece solo al generar el PDF y también a mano.
+ * El PDF se adjunta desde el correo o WhatsApp: el navegador no puede adjuntarlo por nosotros.
+ */
+export function abrirEnvio(totales, { recienGenerado = false, archivo = '' } = {}) {
   const s = S.obtener();
   const cot = s.cotizacion;
-  const folio = cot.folio ?? '(sin folio, genera el PDF primero)';
-  const vence = sumarDias(new Date(cot.fecha), s.config.comercial.vigenciaDias);
+  let idActual = 'envio';
+  let texto = '';
 
-  const saludo = cot.cliente.contacto ? cot.cliente.contacto : cot.cliente.nombre || 'estimado cliente';
-  const cuerpo =
-    `Hola ${saludo}, le comparto la cotización ${folio} de ${s.config.empresa.nombre}.\n\n` +
-    `Proyecto: ${cot.cliente.obra || 'sin especificar'}\n` +
-    `Partidas: ${totales.lineas.length}\n` +
-    `Total con IVA: ${fmtMXN(totales.total)}\n` +
-    `Entrega estimada: ${fmtFecha(sumarDias(new Date(cot.fecha), totales.leadTimeMax))}\n` +
-    `Vigencia: ${fmtFecha(vence)}\n\n` +
-    `Adjunto el PDF con el desglose y las especificaciones técnicas.\n` +
-    `Quedo atento a sus comentarios.\n\n${cot.vendedor || ''}\n${s.config.empresa.telefono}`;
+  const area = el('textarea', { class: 'textarea', rows: 14, style: 'min-height:250px;font-size:13.5px' });
+  const asuntoCampo = entrada({ valor: '' });
+  const selector_ = el('div', { class: 'pill-group' });
 
-  if (canal === 'whatsapp') {
-    const tel = String(cot.cliente.telefono || '').replace(/\D/g, '');
-    const numero = tel.length >= 10 ? (tel.length === 10 ? `52${tel}` : tel) : '';
-    window.open(`https://wa.me/${numero}?text=${encodeURIComponent(cuerpo)}`, '_blank', 'noopener');
-    avisar('WhatsApp abierto. Adjunta el PDF descargado.');
-  } else {
-    const asunto = `Cotización ${folio} · ${s.config.empresa.nombre}`;
-    window.location.href =
-      `mailto:${encodeURIComponent(cot.cliente.email || '')}` +
-      `?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}`;
-    avisar('Correo abierto. Adjunta el PDF descargado.');
+  const pintar = () => {
+    const m = armarMensaje(idActual, cot, totales, s.config);
+    texto = m.texto;
+    area.value = m.texto;
+    asuntoCampo.value = m.asunto;
+    for (const b of selector_.children) {
+      b.setAttribute('aria-pressed', String(b.dataset.id === idActual));
+    }
+    const p = PLANTILLAS.find((x) => x.id === idActual);
+    const pista = $('.js-cuando');
+    if (pista) pista.textContent = p.cuando;
+  };
+
+  for (const p of PLANTILLAS) {
+    selector_.append(el('button', {
+      type: 'button', class: 'pill pill-toggle', dataset: { id: p.id }, title: p.cuando,
+      onclick: () => { idActual = p.id; pintar(); },
+    }, p.nombre));
   }
+
+  area.addEventListener('input', () => { texto = area.value; });
+
+  const tel = telefonoWhatsApp(cot.cliente.telefono);
+
+  const porWhatsApp = () => {
+    window.open(`https://wa.me/${tel}?text=${encodeURIComponent(texto)}`, '_blank', 'noopener');
+    avisar(tel ? 'WhatsApp abierto. Adjunta el PDF descargado.' : 'WhatsApp abierto sin número. Elige el contacto.');
+  };
+
+  const porCorreo = () => {
+    const url = `mailto:${encodeURIComponent(cot.cliente.email || '')}` +
+      `?subject=${encodeURIComponent(asuntoCampo.value)}&body=${encodeURIComponent(texto)}`;
+    if (url.length > 1900) {
+      avisar('El mensaje es muy largo para abrirse solo. Cópialo y pégalo en el correo.', 'err');
+      return;
+    }
+    window.location.href = url;
+    avisar('Correo abierto. Adjunta el PDF descargado.');
+  };
+
+  const copiar = async () => {
+    try {
+      await navigator.clipboard.writeText(texto);
+      avisar('Mensaje copiado');
+    } catch {
+      area.select();
+      avisar('Selecciona y copia con Ctrl+C', 'err');
+    }
+  };
+
+  abrirModal(
+    { titulo: recienGenerado ? 'PDF listo. ¿Cómo se la envías?' : 'Enviar la cotización', ancho: true,
+      subtitulo: recienGenerado
+        ? `Se descargó ${archivo}. Elige el mensaje, revísalo y mándalo. El PDF se adjunta desde tu correo o WhatsApp.`
+        : 'Elige la plantilla según en qué punto va el cliente. Todos los textos son editables.' },
+    el('div', { class: 'stack stack-5' },
+      recienGenerado
+        ? nota(`Cotización ${cot.folio} guardada en el historial. Ya suma al tablero de ahorro.`, 'ok', 'check')
+        : null,
+      el('div', {},
+        el('p', { class: 'field__label mb-3' }, 'Momento del seguimiento'),
+        selector_,
+        el('p', { class: 'tiny mt-3 js-cuando' }, '')),
+      campo({ etiqueta: 'Asunto del correo' }, asuntoCampo),
+      campo({ etiqueta: 'Mensaje', pista: 'Edítalo antes de mandarlo. Se manda lo que ves aquí.' }, area),
+      !cot.cliente.telefono && !cot.cliente.email
+        ? nota('El cliente no tiene teléfono ni correo capturados. Puedes copiar el mensaje y pegarlo donde lo necesites.', 'warn', 'alerta')
+        : null),
+    [el('button', { class: 'btn', onclick: cerrarModal }, 'Cerrar'),
+     el('button', { class: 'btn', onclick: copiar }, icono('copiar', 15), 'Copiar'),
+     el('button', { class: 'btn', onclick: porWhatsApp }, 'WhatsApp'),
+     el('button', { class: 'btn btn--primary', onclick: porCorreo }, 'Abrir correo')]);
+
+  pintar();
 }
 
 function usarEjemplo() {

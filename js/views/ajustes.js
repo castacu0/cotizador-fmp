@@ -18,6 +18,7 @@ export function render(raiz) {
         'Los datos que salen en el PDF, las tarifas del cálculo y la carga del catálogo real.')),
 
     el('div', { class: 'stack stack-3' },
+      bloqueUsuario(s),
       bloqueEmpresa(s),
       bloqueComercial(s),
       bloqueTarifas(s),
@@ -31,6 +32,27 @@ const guardarEn = (ruta) => (e) => {
   S.actualizarConfig(ruta, v);
 };
 const guardarPct = (ruta) => (e) => S.actualizarConfig(ruta, Number(e.target.value || 0) / 100);
+
+// --------------------------------------------------------------------------- quién usa esta computadora
+
+function bloqueUsuario(s) {
+  const actual = s.usuario || '';
+  return accion(
+    { iconoNombre: 'usuario', titulo: '¿Quién usa esta computadora?',
+      pista: actual ? `Registrando como ${actual}` : 'Sin identificar. Captúralo para que la bitácora sirva.',
+      abierto: !actual },
+    el('hr', { class: 'rule mt-0' }),
+    el('p', { class: 'small muted mb-4' },
+      'Este nombre queda en la bitácora junto a cada cambio de precio, alta de material y cotización emitida. ',
+      'No es una contraseña ni un control de acceso: es atribución por confianza, para saber a quién preguntarle.'),
+    campo({ etiqueta: 'Nombre de la persona', pista: 'Nombre y apellido, como lo conoce el equipo' },
+      entrada({ valor: actual, placeholder: 'Luis Ramírez',
+                onChange: (e) => { S.fijarUsuario(e.target.value); avisar('Registrando como ' + (e.target.value || 'Sin identificar')); } })),
+    !actual
+      ? el('div', { class: 'mt-4' },
+          nota('Mientras esté vacío, la bitácora anota "Sin identificar" y pierde casi todo su valor.', 'warn', 'alerta'))
+      : null);
+}
 
 // --------------------------------------------------------------------------- empresa
 

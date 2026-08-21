@@ -26,14 +26,14 @@ export const PLIEGUES = {
 };
 
 export const CATEGORIAS = {
-  'duela-ingenieria': { nombre: 'Duela de ingeniería', unidad: 'm2', familia: 'piso' },
-  'spc':              { nombre: 'Piso SPC',            unidad: 'm2', familia: 'piso' },
-  'laminado':         { nombre: 'Piso laminado',       unidad: 'm2', familia: 'piso' },
-  'deck':             { nombre: 'Deck de exterior',    unidad: 'm2', familia: 'piso' },
-  'porcelanato':      { nombre: 'Porcelanato',         unidad: 'm2', familia: 'piso' },
-  'cortina':          { nombre: 'Cortinas',            unidad: 'ml', familia: 'cortina' },
-  'persiana':         { nombre: 'Persianas',           unidad: 'm2', familia: 'persiana' },
-  'accesorio':        { nombre: 'Accesorios',          unidad: 'pza', familia: 'accesorio' },
+  'duela-ingenieria': { nombre: 'Duela de ingeniería', en: 'Engineered wood flooring', unidad: 'm2', familia: 'piso' },
+  'spc':              { nombre: 'Piso SPC',            en: 'SPC rigid core / waterproof vinyl', unidad: 'm2', familia: 'piso' },
+  'laminado':         { nombre: 'Piso laminado',       en: 'Laminate flooring', unidad: 'm2', familia: 'piso' },
+  'deck':             { nombre: 'Deck de exterior',    en: 'Outdoor decking', unidad: 'm2', familia: 'piso' },
+  'porcelanato':      { nombre: 'Porcelanato',         en: 'Porcelain tile', unidad: 'm2', familia: 'piso' },
+  'cortina':          { nombre: 'Cortinas',            en: 'Drapery / curtains', unidad: 'ml', familia: 'cortina' },
+  'persiana':         { nombre: 'Persianas',           en: 'Blinds / window shades', unidad: 'm2', familia: 'persiana' },
+  'accesorio':        { nombre: 'Accesorios',          en: 'Accessories & trims', unidad: 'pza', familia: 'accesorio' },
 };
 
 // ---------------------------------------------------------------------------

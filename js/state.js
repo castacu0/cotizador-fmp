@@ -27,6 +27,16 @@ export const CONFIG_DEFAULT = {
     garantiaAnios: 10,
   },
   logistica: { diasTransito: 35, diasAduana: 7, diasInstalacionM2: 25 },
+  // Supuestos del tablero de ahorro. Se ajustan con los números reales de la empresa.
+  ahorro: {
+    horasPorCotizacionAntes: 3.5,
+    minutosPorCotizacionAhora: 12,
+    costoHora: 420,
+    tasaCierre: 0.35,
+    mermaNoCotizadaPct: 0.06,
+    proporcionMaterial: 0.55,
+    obrasConError: 0.375,
+  },
   tarifas: {
     instalacion: {
       'duela-ingenieria': 320,
@@ -84,6 +94,8 @@ const ESTADO_INICIAL = () => ({
   catalogoEsDemo: true,
   cotizacion: cotizacionVacia(),
   historial: [],
+  bitacora: [],
+  usuario: '',
   consecutivo: 1,
 });
 
@@ -153,18 +165,60 @@ function emitir() {
   for (const fn of suscriptores) fn(estado);
 }
 
+// --------------------------------------------------------------------------- bitácora
+
+/**
+ * Registro de cambios. No es seguridad: no hay contraseñas ni sesiones.
+ * Sirve para saber quién tocó un precio y cuándo, que es el reclamo real
+ * cuando diez personas comparten catálogo.
+ */
+export function registrar(accion, detalle, extra = {}) {
+  actualizar((s) => {
+    if (!Array.isArray(s.bitacora)) s.bitacora = [];
+    s.bitacora.unshift({
+      id: uid('log'),
+      fecha: new Date().toISOString(),
+      usuario: (s.usuario || '').trim() || 'Sin identificar',
+      accion, detalle, ...extra,
+    });
+    s.bitacora = s.bitacora.slice(0, 800);
+  });
+}
+
+export function fijarUsuario(nombre) {
+  actualizar((s) => { s.usuario = String(nombre || '').trim(); });
+}
+
+export const usuarioActual = () => (estado.usuario || '').trim();
+
 // --------------------------------------------------------------------------- catálogo
 
 export function guardarProducto(producto) {
+  const previo = estado.catalogo.find((p) => p.id === producto.id);
   actualizar((s) => {
     const i = s.catalogo.findIndex((p) => p.id === producto.id);
     if (i >= 0) s.catalogo[i] = { ...s.catalogo[i], ...producto };
     else s.catalogo.unshift({ ...producto, id: producto.id || uid('prod') });
     s.catalogoEsDemo = false;
   });
+
+  if (!previo) {
+    registrar('Alta de material', `${producto.nombre} (${producto.sku})`,
+      { sku: producto.sku, precioNuevo: Number(producto.precio) || 0 });
+  } else if (Number(previo.precio) !== Number(producto.precio)) {
+    registrar('Cambio de precio', `${producto.nombre} (${producto.sku})`, {
+      sku: producto.sku,
+      precioAnterior: Number(previo.precio) || 0,
+      precioNuevo: Number(producto.precio) || 0,
+    });
+  } else {
+    registrar('Edición de material', `${producto.nombre} (${producto.sku})`, { sku: producto.sku });
+  }
 }
 
 export function eliminarProducto(id) {
+  const previo = estado.catalogo.find((p) => p.id === id);
+  if (previo) registrar('Baja de material', `${previo.nombre} (${previo.sku})`, { sku: previo.sku });
   actualizar((s) => {
     s.catalogo = s.catalogo.filter((p) => p.id !== id);
     s.cotizacion.partidas = s.cotizacion.partidas.filter((p) => p.productoId !== id);
@@ -182,6 +236,8 @@ export function reemplazarCatalogo(productos, { fusionar: modoFusion = false } =
     }
     s.catalogoEsDemo = false;
   });
+  registrar(modoFusion ? 'Fusión de catálogo' : 'Reemplazo de catálogo',
+    `${productos.length} materiales`, { cantidad: productos.length });
 }
 
 /**
@@ -216,6 +272,7 @@ export function buscarProductos(catalogo, consulta, filtros = {}) {
   for (const p of base) {
     const campos = {
       nombre: normalizar(p.nombre),
+      ingles: normalizar(p.nombreEn),
       sku: normalizar(p.sku),
       especie: normalizar(p.especie),
       acabado: normalizar(p.acabado),
@@ -239,6 +296,7 @@ export function buscarProductos(catalogo, consulta, filtros = {}) {
       if (campos.nombre.startsWith(t)) puntaje += 5;
       else if (contiene(campos.nombre, t)) puntaje += 4;
       if (contiene(campos.especie, t)) puntaje += 3;
+      if (contiene(campos.ingles, t)) puntaje += 3;
       if (contiene(campos.acabado, t) || contiene(campos.color, t) || contiene(campos.tela, t)) puntaje += 2;
       puntaje += 1;
     }
@@ -304,16 +362,39 @@ export function archivarCotizacion(totales) {
     });
     s.historial = s.historial.slice(0, 100);
   });
+  registrar('Cotización emitida',
+    `${estado.cotizacion.folio} · ${estado.cotizacion.cliente.nombre || 'sin cliente'}`,
+    { folio: estado.cotizacion.folio, total: totales.total, margen: totales.margenGlobal });
 }
 
 export function actualizarConfig(ruta, valor) {
+  const partes = ruta.split('.');
+  let previo = estado.config;
+  for (const k of partes) previo = previo?.[k];
+
   actualizar((s) => {
-    const partes = ruta.split('.');
     let nodo = s.config;
     for (let i = 0; i < partes.length - 1; i++) nodo = nodo[partes[i]];
     nodo[partes.at(-1)] = valor;
   });
+
+  // El logotipo es una imagen larga: no tiene caso guardarla en la bitácora.
+  if (ruta !== 'empresa.logoDataUrl' && String(previo) !== String(valor)) {
+    registrar('Cambio de configuración', ETIQUETAS_CONFIG[ruta] ?? ruta,
+      { ruta, valorAnterior: previo, valorNuevo: valor });
+  }
 }
+
+const ETIQUETAS_CONFIG = {
+  'comercial.margenDefault': 'Margen bruto por defecto',
+  'fiscal.iva': 'IVA',
+  'fiscal.tipoCambio': 'Tipo de cambio USD',
+  'comercial.vigenciaDias': 'Vigencia de la cotización',
+  'comercial.anticipoPct': 'Porcentaje de anticipo',
+  'comercial.garantiaAnios': 'Años de garantía',
+  'logistica.diasTransito': 'Días de tránsito marítimo',
+  'logistica.diasAduana': 'Días de despacho aduanal',
+};
 
 // --------------------------------------------------------------------------- respaldo
 

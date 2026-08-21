@@ -7,3 +7,6 @@ respaldo-*.json
 *.xlsx
 *.xls
 propuesta.html
+genpdf.mjs
+cotizacion-muestra.pdf
+carpeta.html

@@ -24,6 +24,7 @@ export function render(raiz) {
           el('p', { class: 'lead mt-3' },
             'Todo lo que la empresa vende, con precio, medidas y tiempo de entrega. Los cambios se aplican de inmediato al cotizador.')),
         el('div', { class: 'row row--tight' },
+          el('button', { class: 'btn', onclick: abrirCambioMasivo }, icono('barras', 15), 'Cambiar precios'),
           el('button', { class: 'btn', onclick: exportar }, icono('bajar', 15), 'Exportar CSV'),
           el('button', { class: 'btn btn--primary', onclick: () => abrirEditor(null) },
             icono('mas', 15), 'Agregar producto')))),
@@ -112,7 +113,10 @@ function filaProducto(p, s) {
 
   return el('tr', {},
     el('td', {},
-      el('div', { style: 'font-weight:500' }, p.nombre),
+      el('div', { style: 'font-weight:500' }, p.nombre,
+        p.nombreEn
+          ? el('span', { class: 'muted', style: 'font-weight:400' }, `  (${p.nombreEn})`)
+          : null),
       el('div', { class: 'tiny' }, `${p.sku}${p.especie ? `  ·  ${p.especie}` : ''}${p.acabado ? `  ·  ${p.acabado}` : ''}`)),
     el('td', {}, el('span', { class: 'pill pill--sm' }, CATEGORIAS[p.categoria]?.nombre ?? p.categoria)),
     el('td', { class: 'small muted' }, medidas),
@@ -146,7 +150,7 @@ export function abrirEditor(producto) {
   const b = producto
     ? { ...producto }
     : {
-        id: uid('prod'), sku: '', nombre: '', categoria: 'duela-ingenieria',
+        id: uid('prod'), sku: '', nombre: '', nombreEn: '', categoria: 'duela-ingenieria',
         especie: '', espesorMm: '', anchoMm: '', largoMm: '', capaNobleMm: '',
         acabado: '', color: '', tela: '', anchoRolloM: '',
         m2PorCaja: '', precio: '', moneda: 'MXN', unidad: 'm2',
@@ -239,6 +243,7 @@ export function abrirEditor(producto) {
     }
     limpio.sku = String(limpio.sku).trim()
       || normalizar(limpio.nombre).replace(/\s+/g, '-').slice(0, 28).toUpperCase();
+    if (!String(limpio.nombreEn ?? '').trim()) delete limpio.nombreEn;
     limpio.caracteristicas = String(b._caracTexto ?? (b.caracteristicas ?? []).join(', '))
       .split(',').map((x) => x.trim()).filter(Boolean);
     delete limpio._caracTexto;
@@ -258,6 +263,10 @@ export function abrirEditor(producto) {
           entrada({ valor: b.nombre, placeholder: 'Duela de ingeniería Encino Premium Aceitado', onChange: set('nombre') })),
         campo({ etiqueta: 'SKU o clave', pista: 'Si lo dejas vacío se genera solo' },
           entrada({ valor: b.sku, placeholder: 'DI-ENC-14-220', onChange: set('sku') }))),
+
+      campo({ etiqueta: 'Cómo se le conoce en inglés',
+              pista: 'Se muestra entre paréntesis y también sirve para buscar. Útil con proveedor extranjero y con arquitectos que trabajan con fichas en inglés.' },
+        entrada({ valor: b.nombreEn ?? '', placeholder: 'Oiled Engineered Oak Flooring', onChange: set('nombreEn') })),
 
       el('div', { class: 'grid-3' },
         campo({ etiqueta: 'Familia', pista: 'Define qué motor de cálculo se usa' },
@@ -311,6 +320,92 @@ export function abrirEditor(producto) {
               onchange: set('notas'),
             }, b.notas ?? ''))))),
     [el('button', { class: 'btn', onclick: cerrarModal }, 'Cancelar'), guardar]);
+}
+
+/**
+ * Cambio de precios por familia. Es lo que de verdad hacen cuando el proveedor
+ * sube la lista: no editan 60 productos uno por uno.
+ */
+function abrirCambioMasivo() {
+  const s = S.obtener();
+  let familia = '';
+  let pct = 0;
+  const vista = el('div', {});
+
+  const afectados = () => s.catalogo.filter((p) => !familia || p.categoria === familia);
+
+  const pintar = () => {
+    const lista = afectados();
+    vista.replaceChildren(
+      el('div', { class: 'grid-3 mb-4' },
+        el('div', { class: 'kpi' },
+          el('div', { class: 'kpi__label' }, 'Materiales afectados'),
+          el('div', { class: 'kpi__value' }, fmtNum(lista.length, 0))),
+        el('div', { class: 'kpi' },
+          el('div', { class: 'kpi__label' }, 'Ajuste'),
+          el('div', { class: 'kpi__value', style: `color:${pct > 0 ? 'var(--ok)' : pct < 0 ? 'var(--danger)' : ''}` },
+            `${pct > 0 ? '+' : ''}${fmtNum(pct, 1)}%`)),
+        el('div', { class: 'kpi' },
+          el('div', { class: 'kpi__label' }, 'Ejemplo'),
+          el('div', { class: 'kpi__value' },
+            lista[0] ? fmtMXN(Number(lista[0].precio) * (1 + pct / 100)) : '—'),
+          el('div', { class: 'kpi__note' },
+            lista[0] ? `${lista[0].nombre.slice(0, 30)} · hoy ${fmtMXN(lista[0].precio)}` : ''))),
+      lista.length
+        ? el('div', { class: 'tabla-wrap' },
+            el('table', { class: 'tabla' },
+              el('thead', {}, el('tr', {},
+                el('th', {}, 'Material'), el('th', { class: 'r' }, 'Precio hoy'), el('th', { class: 'r' }, 'Precio nuevo'))),
+              el('tbody', {}, ...lista.slice(0, 10).map((p) => el('tr', {},
+                el('td', { class: 'small' }, p.nombre),
+                el('td', { class: 'r small' }, fmtMXN(p.precio)),
+                el('td', { class: 'r', style: 'font-weight:600' }, fmtMXN(Number(p.precio) * (1 + pct / 100))))))))
+        : nota('Ninguna familia seleccionada tiene materiales.', 'warn', 'alerta'),
+      lista.length > 10
+        ? el('p', { class: 'tiny mt-3' }, `Se muestran 10 de ${lista.length}. El cambio aplica a todos.`)
+        : null);
+  };
+
+  const aplicar = el('button', { class: 'btn btn--primary' }, 'Aplicar cambio');
+  aplicar.onclick = async () => {
+    const lista = afectados();
+    if (!lista.length || !pct) return avisar('Elige una familia y un porcentaje distinto de cero.', 'err');
+    const ok = await confirmar({
+      titulo: 'Confirmar cambio de precios',
+      textoOk: 'Aplicar',
+      peligro: pct < 0,
+      mensaje: `Se ajustan ${lista.length} materiales en ${pct > 0 ? '+' : ''}${fmtNum(pct, 1)}%. ` +
+               'Cada cambio queda registrado en la bitácora con tu nombre. Exporta un respaldo antes si tienes dudas.',
+    });
+    if (!ok) return;
+    for (const p of lista) {
+      S.guardarProducto({ ...p, precio: Number((Number(p.precio) * (1 + pct / 100)).toFixed(2)) });
+    }
+    S.guardarAhora();
+    cerrarModal();
+    refrescar();
+    avisar(`${lista.length} precios actualizados`);
+  };
+
+  abrirModal(
+    { titulo: 'Cambiar precios por familia', ancho: true,
+      subtitulo: 'Cuando el proveedor sube la lista, no hay que editar material por material.' },
+    el('div', { class: 'stack stack-5' },
+      el('div', { class: 'grid-2' },
+        campo({ etiqueta: 'Familia', pista: 'Deja "Todas" para ajustar el catálogo completo' },
+          selector({
+            valor: '', onChange: (e) => { familia = e.target.value; pintar(); },
+            opciones: [{ valor: '', etiqueta: 'Todas las familias' },
+              ...Object.entries(CATEGORIAS).map(([k, c]) => ({ valor: k, etiqueta: c.nombre }))],
+          })),
+        campo({ etiqueta: 'Ajuste', sufijo: '%', pista: 'Positivo sube, negativo baja' },
+          entrada({ valor: '', tipo: 'number', paso: '0.5', numero: true, placeholder: '5',
+                    onInput: (e) => { pct = Number(e.target.value || 0); pintar(); } }))),
+      vista,
+      nota('El cambio aplica sobre el precio de costo. El margen configurado se sigue aplicando encima al cotizar.', '', 'info')),
+    [el('button', { class: 'btn', onclick: cerrarModal }, 'Cancelar'), aplicar]);
+
+  pintar();
 }
 
 function exportar() {

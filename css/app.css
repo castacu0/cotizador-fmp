@@ -620,3 +620,98 @@ a { color: var(--accent); text-underline-offset: 3px; }
 
 .linea { animation: linea-in .32s var(--ease) both; }
 @keyframes linea-in { from { opacity: 0; transform: translateY(10px); } }
+
+/* ======================================================== tablero de ahorro */
+
+:root {
+  /* Serie categórica validada: separación CVD 15.4, visión normal 17.2 */
+  --dato-1: #155FA8;
+  --dato-2: #B98216;
+  --dato-3: #9C4530;
+}
+
+.hero-ahorro {
+  display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+  gap: var(--s6); align-items: center;
+  background: var(--surface); border: 1px solid var(--line-2);
+  border-radius: var(--r3); padding: var(--s6);
+}
+@media (max-width: 780px) { .hero-ahorro { grid-template-columns: 1fr; gap: var(--s5); } }
+
+.hero-ahorro__cifra {
+  font-family: var(--serif);
+  font-size: clamp(38px, 6vw, 62px); line-height: 1; letter-spacing: -.025em;
+  font-variant-numeric: tabular-nums; margin-top: 8px;
+}
+.hero-ahorro__lado {
+  display: grid; gap: var(--s4);
+  border-left: 1px solid var(--line); padding-left: var(--s6);
+}
+@media (max-width: 780px) {
+  .hero-ahorro__lado { border-left: 0; padding-left: 0; border-top: 1px solid var(--line); padding-top: var(--s5); }
+}
+.hero-ahorro__sub {
+  font-family: var(--serif); font-size: 24px; line-height: 1.15;
+  font-variant-numeric: tabular-nums; margin-top: 4px;
+}
+
+/* Barra de composición: 2 px de aire entre segmentos, extremos redondeados */
+.barra-comp { display: flex; gap: 2px; height: 30px; }
+.barra-comp__seg { border-radius: 2px; transition: opacity .16s var(--ease); }
+.barra-comp__seg:first-child { border-radius: 4px 2px 2px 4px; }
+.barra-comp__seg:last-child  { border-radius: 2px 4px 4px 2px; }
+.barra-comp:hover .barra-comp__seg { opacity: .55; }
+.barra-comp .barra-comp__seg:hover { opacity: 1; }
+
+.leyenda { display: flex; flex-wrap: wrap; gap: var(--s5); }
+.leyenda__item { display: flex; align-items: flex-start; gap: 9px; }
+.leyenda__punto { width: 10px; height: 10px; border-radius: 2px; margin-top: 5px; flex: none; }
+
+/* Columnas mensuales */
+.barras { display: flex; align-items: flex-end; justify-content: flex-start; gap: var(--s3); min-height: 180px; overflow-x: auto; padding-bottom: 2px; }
+.barras__col { flex: 1; min-width: 46px; max-width: 96px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.barras__valor { font-size: 10.5px; color: var(--ink-3); white-space: nowrap; }
+.barras__pista { width: 100%; height: 130px; display: flex; align-items: flex-end; background: var(--surface-3); border-radius: 3px; }
+.barras__barra {
+  width: 100%; background: var(--dato-2);
+  border-radius: 4px 4px 2px 2px;
+  transition: opacity .16s var(--ease);
+}
+.barras:hover .barras__barra { opacity: .5; }
+.barras__col:hover .barras__barra { opacity: 1; }
+.barras__etq  { font-size: 11.5px; color: var(--ink-2); font-weight: 500; }
+.barras__etq2 { font-size: 10.5px; color: var(--ink-4); }
+
+/* ======================================================== servicios */
+
+.servicio {
+  display: grid; grid-template-columns: 34px minmax(0, 1fr) auto;
+  gap: var(--s4); align-items: start;
+  padding: var(--s4) 0; border-bottom: 1px solid var(--line);
+}
+.servicio:last-child { border-bottom: 0; }
+.servicio__icono {
+  width: 34px; height: 34px; display: grid; place-items: center;
+  border-radius: var(--r2); background: var(--accent-soft); color: var(--accent);
+}
+.servicio__t { font-size: 14.5px; font-weight: 600; }
+.servicio__d { font-size: 13px; color: var(--ink-3); margin-top: 3px; line-height: 1.5; }
+@media (max-width: 620px) { .servicio { grid-template-columns: 34px minmax(0, 1fr); } .servicio > .pill { grid-column: 2; justify-self: start; } }
+
+/* ======================================================== mensajes */
+
+.mensaje-caja {
+  border: 1px solid var(--line); border-radius: var(--r2);
+  background: var(--surface-2); padding: var(--s4);
+  font-size: 13px; line-height: 1.6; color: var(--ink-2);
+  white-space: pre-wrap; max-height: 260px; overflow-y: auto;
+}
+
+/* En teléfono los botones del encabezado bajan debajo del texto, en vez de
+   estrujar la descripción en una columna de cinco palabras. */
+@media (max-width: 620px) {
+  .view > header .row { flex-direction: column; align-items: stretch; }
+  .view > header .row > div[style*="flex:1"] { min-width: 100%; }
+  .view > header .row > .row { justify-content: flex-start; }
+  .view > header .row > .row .btn { flex: 1; }
+}
