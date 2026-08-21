@@ -259,7 +259,7 @@ function tarjetaPartida(linea, idx) {
         el('p', { class: 'small muted mt-3' }, resumenPartida(c, producto)),
         el('div', { class: 'row row--tight mt-3' },
           c.margenEfectivo != null
-            ? el('span', { class: `pill pill--sm ${c.margenEfectivo < 0.2 ? 'pill--danger' : c.margenEfectivo < 0.3 ? 'pill--warn' : 'pill--ok'}` },
+            ? el('span', { class: `pill pill--sm ${c.margenEfectivo < 0.25 ? 'pill--danger' : c.margenEfectivo < 0.3 ? 'pill--warn' : 'pill--ok'}` },
                 `Margen ${fmtNum(c.margenEfectivo * 100, 1)}%`)
             : null,
           c.descuentoPct > 0 ? el('span', { class: 'pill pill--sm pill--accent' }, `Desc. ${fmtNum(c.descuentoPct * 100, 0)}%`) : null,
@@ -692,7 +692,7 @@ function panelResumen() {
 
   const hay = totales.lineas.length > 0;
   const m = totales.margenGlobal;
-  const colorMargen = m < 0.2 ? 'var(--danger)' : m < 0.3 ? 'var(--warn)' : 'var(--ok)';
+  const colorMargen = m < 0.25 ? 'var(--danger)' : m < 0.3 ? 'var(--warn)' : 'var(--ok)';
 
   const entrega = sumarDias(new Date(cot.fecha), totales.leadTimeMax);
 
@@ -739,9 +739,14 @@ function panelResumen() {
                             style: `width:${Math.min(Math.max(m, 0) * 200, 100)}%;background:${colorMargen}` })),
               el('p', { class: 'tiny' }, `Utilidad ${fmtMXN(totales.utilidad)} sobre un costo de ${fmtMXN(totales.costoTotal)}`)),
 
-            m < 0.25 && m > 0
-              ? el('div', { class: 'mt-4' }, nota('El margen quedó por debajo del 25%. Revisa descuentos antes de enviar.', 'warn', 'alerta'))
-              : null,
+            m <= 0
+              ? el('div', { class: 'mt-4' },
+                  nota('Estás vendiendo por debajo del costo. Cada peso de esta cotización sale de la utilidad de la empresa. Revisa los descuentos.',
+                       'danger', 'alerta'))
+              : m < 0.25
+                ? el('div', { class: 'mt-4' },
+                    nota('El margen quedó por debajo del 25%. Revisa descuentos antes de enviar.', 'warn', 'alerta'))
+                : null,
 
             el('hr', { class: 'rule', style: 'margin:16px 0' }),
 
@@ -813,9 +818,23 @@ function armar() {
   return { cot: st.cotizacion, totales, config: st.config };
 }
 
-function exportarPDF() {
+/** Última red de seguridad antes de mandarle al cliente un precio bajo costo. */
+async function confirmarSiPierde(totales) {
+  if (totales.margenGlobal > 0) return true;
+  return confirmar({
+    titulo: 'Esta cotización pierde dinero',
+    peligro: true,
+    textoOk: 'Generar de todos modos',
+    mensaje: `El precio de venta (${fmtMXN(totales.baseGravable)}) queda por debajo del costo directo ` +
+             `(${fmtMXN(totales.costoTotal)}). La empresa perdería ${fmtMXN(totales.costoTotal - totales.baseGravable)} ` +
+             `en esta obra. Revisa los descuentos antes de enviarla.`,
+  });
+}
+
+async function exportarPDF() {
   const datos = armar();
   if (!datos) return;
+  if (!(await confirmarSiPierde(datos.totales))) return;
   try {
     const { nombre } = generarPDF(datos.cot, datos.totales, datos.config);
     S.archivarCotizacion(datos.totales);
@@ -827,9 +846,10 @@ function exportarPDF() {
   }
 }
 
-function previsualizarPDF() {
+async function previsualizarPDF() {
   const datos = armar();
   if (!datos) return;
+  if (!(await confirmarSiPierde(datos.totales))) return;
   try {
     const { url } = generarPDF(datos.cot, datos.totales, datos.config, { modo: 'url' });
     abrirModal({ titulo: 'Vista previa', ancho: true, subtitulo: 'Dos páginas. Revisa antes de enviarlo al cliente.' },

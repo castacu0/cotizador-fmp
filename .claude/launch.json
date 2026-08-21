@@ -4,7 +4,7 @@
     {
       "name": "cotizador",
       "runtimeExecutable": "python3",
-      "runtimeArgs": ["-m", "http.server", "4173"],
+      "runtimeArgs": ["servidor-dev.py", "4173"],
       "port": 4173
     }
   ]

@@ -204,6 +204,14 @@ export function buscarProductos(catalogo, consulta, filtros = {}) {
 
   if (!tokens.length) return base.map((p) => ({ producto: p, puntaje: 0 }));
 
+  // Un token puramente numérico debe casar como palabra completa.
+  // Si no, buscar "9" traería el de 190 mm de ancho y el de 1900 de largo.
+  const esNumerico = (t) => /^\d+(\.\d+)?$/.test(t);
+  const contiene = (campo, t) =>
+    esNumerico(t)
+      ? new RegExp(`(^|[^0-9.])${t.replace('.', '\\.')}([^0-9.]|$)`).test(campo)
+      : campo.includes(t);
+
   const resultados = [];
   for (const p of base) {
     const campos = {
@@ -214,7 +222,9 @@ export function buscarProductos(catalogo, consulta, filtros = {}) {
       color: normalizar(p.color),
       tela: normalizar(p.tela),
       origen: normalizar(p.origen),
-      medidas: normalizar(`${p.espesorMm ?? ''}mm ${p.espesorMm ?? ''} ${p.anchoMm ?? ''} ${p.largoMm ?? ''}`),
+      medidas: normalizar(
+        `${p.espesorMm ?? ''}mm ${p.espesorMm ?? ''} ${p.anchoMm ?? ''} ${p.largoMm ?? ''} ` +
+        `${p.capaNobleMm ?? ''} ${p.anchoRolloM ?? ''}`),
       carac: normalizar((p.caracteristicas ?? []).join(' ')),
     };
     const todo = Object.values(campos).join(' ');
@@ -222,13 +232,14 @@ export function buscarProductos(catalogo, consulta, filtros = {}) {
     let puntaje = 0;
     let coincidenTodos = true;
     for (const t of tokens) {
-      if (!todo.includes(t)) { coincidenTodos = false; break; }
-      if (campos.sku.includes(t)) puntaje += 6;
+      if (!contiene(todo, t)) { coincidenTodos = false; break; }
+      if (contiene(campos.sku, t)) puntaje += 6;
+      // El espesor es el filtro que más usa el vendedor: pesa más que el resto.
+      if (esNumerico(t) && contiene(campos.medidas, t)) puntaje += 5;
       if (campos.nombre.startsWith(t)) puntaje += 5;
-      else if (campos.nombre.includes(t)) puntaje += 4;
-      if (campos.especie.includes(t)) puntaje += 3;
-      if (campos.acabado.includes(t) || campos.color.includes(t) || campos.tela.includes(t)) puntaje += 2;
-      if (campos.medidas.includes(t)) puntaje += 2;
+      else if (contiene(campos.nombre, t)) puntaje += 4;
+      if (contiene(campos.especie, t)) puntaje += 3;
+      if (contiene(campos.acabado, t) || contiene(campos.color, t) || contiene(campos.tela, t)) puntaje += 2;
       puntaje += 1;
     }
     if (coincidenTodos) resultados.push({ producto: p, puntaje });

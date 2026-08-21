@@ -527,6 +527,6 @@ function bloqueHistorial(s) {
               el('td', { class: 'r', style: 'font-weight:600' }, fmtMXN(c.total)),
               el('td', { class: 'r' },
                 el('span', {
-                  class: `pill pill--sm ${c.margen < 0.2 ? 'pill--danger' : c.margen < 0.3 ? 'pill--warn' : 'pill--ok'}`,
+                  class: `pill pill--sm ${c.margen < 0.25 ? 'pill--danger' : c.margen < 0.3 ? 'pill--warn' : 'pill--ok'}`,
                 }, `${fmtNum(c.margen * 100, 1)}%`))))))));
 }

@@ -65,8 +65,17 @@ export function aMilimetros(valor, unidad = 'mm') {
 export const uid = (prefijo = 'id') =>
   `${prefijo}_${Math.random().toString(36).slice(2, 9)}${Date.now().toString(36).slice(-4)}`;
 
-/** Redondeo comercial: hacia arriba al múltiplo indicado. */
-export const redondearArriba = (n, multiplo = 1) => Math.ceil(n / multiplo) * multiplo;
+/**
+ * Redondeo comercial hacia arriba al múltiplo indicado.
+ * Se normaliza el punto flotante: sin esto, redondearArriba(8.48, 0.1)
+ * puede devolver 8.500000000000002 y arrastrar el error a los importes.
+ */
+export const redondearArriba = (n, multiplo = 1) => {
+  if (!Number.isFinite(n)) return 0;
+  if (!(multiplo > 0)) return n;
+  const veces = Math.ceil(Number((n / multiplo).toFixed(9)));
+  return Number((veces * multiplo).toFixed(6));
+};
 
 export const clamp = (n, min, max) => Math.min(Math.max(n, min), max);
 

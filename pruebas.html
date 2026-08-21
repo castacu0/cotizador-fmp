@@ -1,0 +1,557 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pruebas del motor de cálculo · Cotizador FMP</title>
+<link rel="stylesheet" href="css/app.css?v=5">
+<style>
+  .main{max-width:920px}
+  .t{width:100%;border-collapse:collapse;font-size:13.5px}
+  .t td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  .t td:first-child{width:30px}
+  .t td:last-child{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;color:var(--ink-3)}
+  .ok{color:var(--ok);font-weight:700}
+  .no{color:var(--danger);font-weight:700}
+  .grupo{font-weight:600;padding-top:22px!important;font-size:12px;letter-spacing:.1em;
+         text-transform:uppercase;color:var(--ink-4)}
+</style>
+</head>
+<body>
+<div class="shell">
+  <main class="main">
+    <p class="eyebrow">Control de calidad</p>
+    <h1 class="display mt-3">Pruebas del motor</h1>
+    <p class="lead mt-3">
+      Verifica que el cálculo de merma, cajas, tela, área mínima, margen e impuestos siga siendo
+      correcto. Corre estas pruebas después de cambiar tarifas o fórmulas.
+    </p>
+    <div id="resumen" class="mt-5"></div>
+    <div id="salida" class="mt-5"></div>
+  </main>
+</div>
+
+<script type="module">
+import { redondearArriba } from './js/format.js';
+import { calcularPartida, calcularTotales, estimarPerimetro, leadTimeProducto,
+         precioBaseMXN, PATRONES } from './js/pricing.js';
+import { CONFIG_DEFAULT, buscarProductos } from './js/state.js';
+import { CATALOGO_DEMO } from './js/catalog-seed.js';
+import { sugerirMapeo, mapearFilas, normalizarCategoria, plantillaCSV } from './js/importer.js';
+
+const cfg = structuredClone(CONFIG_DEFAULT);
+const pruebas = [];
+const P = (grupo, nombre, fn) => pruebas.push({ grupo, nombre, fn });
+
+// Compara con tolerancia: los importes se comparan al centavo.
+const cerca = (a, b, tol = 0.01) => Math.abs(a - b) <= tol;
+
+const prod = (extra) => ({
+  id: 'X', sku: 'X', nombre: 'Prueba', categoria: 'duela-ingenieria',
+  precio: 1000, moneda: 'MXN', unidad: 'm2', importado: false, leadTimeDias: 3,
+  m2PorCaja: 2.42, caracteristicas: [], ...extra,
+});
+
+const base = {
+  areaM2: '', patron: 'recto', perimetroM: '', incluirInstalacion: false,
+  incluirZoclo: false, incluirUnderlayment: false, incluirAdhesivo: false,
+  incluirBoquilla: false, perfilesTransicion: 0,
+  anchoM: '', altoM: '', cantidad: 1, pliegue: 2.5,
+  incluirRiel: false, rielMotorizado: false, incluirForro: false, motorizada: false,
+  margenOverride: 0, descuentoPct: 0,
+};
+
+// ---------------------------------------------------------------- redondeo
+
+P('Redondeo', 'redondearArriba(8.48, 0.1) da exactamente 8.5 sin arrastre binario', () => {
+  const r = redondearArriba(8.48, 0.1);
+  return { ok: r === 8.5, obtenido: r, esperado: 8.5 };
+});
+P('Redondeo', 'redondearArriba(47.65, 0.5) sube a 48', () => {
+  const r = redondearArriba(47.65, 0.5);
+  return { ok: r === 48, obtenido: r, esperado: 48 };
+});
+P('Redondeo', 'Un valor ya exacto no sube de escalón', () => {
+  const r = redondearArriba(8.5, 0.1);
+  return { ok: r === 8.5, obtenido: r, esperado: 8.5 };
+});
+
+// ---------------------------------------------------------------- piso
+
+P('Piso', '120 m² recto: merma 7% da 128.40 m²', () => {
+  const c = calcularPartida({ ...base, areaM2: 120 }, prod(), cfg);
+  return { ok: cerca(c.areaConMerma, 128.40), obtenido: c.areaConMerma.toFixed(2), esperado: '128.40' };
+});
+P('Piso', '120 m² recto: se surten 54 cajas completas', () => {
+  const c = calcularPartida({ ...base, areaM2: 120 }, prod(), cfg);
+  return { ok: c.cajas === 54, obtenido: c.cajas, esperado: 54 };
+});
+P('Piso', '120 m² recto: se facturan 130.68 m², no los 120 del plano', () => {
+  const c = calcularPartida({ ...base, areaM2: 120 }, prod(), cfg);
+  return { ok: cerca(c.areaFacturable, 130.68), obtenido: c.areaFacturable.toFixed(2), esperado: '130.68' };
+});
+P('Piso', '120 m² espina de pescado: 59 cajas y 142.78 m² facturables', () => {
+  const c = calcularPartida({ ...base, areaM2: 120, patron: 'espina' }, prod(), cfg);
+  return { ok: c.cajas === 59 && cerca(c.areaFacturable, 142.78),
+           obtenido: `${c.cajas} cajas / ${c.areaFacturable.toFixed(2)} m²`, esperado: '59 cajas / 142.78 m²' };
+});
+P('Piso', 'Material = área facturable por precio, no área solicitada', () => {
+  const c = calcularPartida({ ...base, areaM2: 120 }, prod({ precio: 1690 }), cfg);
+  return { ok: cerca(c.material, 130.68 * 1690), obtenido: c.material.toFixed(2),
+           esperado: (130.68 * 1690).toFixed(2) };
+});
+P('Piso', 'Sin dato de caja se factura el área con merma', () => {
+  const c = calcularPartida({ ...base, areaM2: 100 }, prod({ m2PorCaja: undefined }), cfg);
+  return { ok: cerca(c.areaFacturable, 107), obtenido: c.areaFacturable.toFixed(2), esperado: '107.00' };
+});
+P('Piso', 'Área cero no genera importe ni cajas', () => {
+  const c = calcularPartida({ ...base, areaM2: 0 }, prod(), cfg);
+  return { ok: c.importe === 0 && c.cajas === 0, obtenido: `${c.importe} / ${c.cajas} cajas`, esperado: '0 / 0 cajas' };
+});
+P('Piso', 'Cada patrón aplica su merma declarada', () => {
+  const fallos = Object.entries(PATRONES).filter(([k, v]) => {
+    const c = calcularPartida({ ...base, areaM2: 100, patron: k }, prod(), cfg);
+    return !cerca(c.mermaPct, v.merma, 0.0001);
+  });
+  return { ok: fallos.length === 0, obtenido: fallos.length ? fallos.map(f => f[0]).join(', ') : '5 de 5',
+           esperado: '5 de 5' };
+});
+P('Piso', 'Espina de pescado encarece la mano de obra 60%', () => {
+  const r = calcularPartida({ ...base, areaM2: 100, incluirInstalacion: true }, prod(), cfg);
+  const e = calcularPartida({ ...base, areaM2: 100, patron: 'espina', incluirInstalacion: true }, prod(), cfg);
+  return { ok: cerca(e.manoObra / r.manoObra, 1.6, 0.001),
+           obtenido: `×${(e.manoObra / r.manoObra).toFixed(2)}`, esperado: '×1.60' };
+});
+P('Piso', 'El zoclo descuenta 8% del perímetro por los vanos', () => {
+  const c = calcularPartida({ ...base, areaM2: 120, perimetroM: 50, incluirZoclo: true }, prod(), cfg);
+  const z = c.accesorios.find((a) => a.clave === 'zoclo');
+  return { ok: cerca(z.cantidad, redondearArriba(50 * 0.92, 0.5)),
+           obtenido: `${z.cantidad} ml`, esperado: `${redondearArriba(46, 0.5)} ml` };
+});
+P('Piso', 'Sin perímetro capturado se estima y se marca como estimación', () => {
+  const c = calcularPartida({ ...base, areaM2: 120, incluirZoclo: true }, prod(), cfg);
+  return { ok: c.perimetroEstimado === true && c.perimetro > 0,
+           obtenido: `${c.perimetro.toFixed(1)} m estimados`, esperado: 'estimado > 0' };
+});
+P('Piso', 'Un producto en dólares se convierte al tipo de cambio', () => {
+  const c = calcularPartida({ ...base, areaM2: 100 }, prod({ precio: 100, moneda: 'USD', m2PorCaja: undefined }), cfg);
+  return { ok: cerca(c.precioM2, 100 * cfg.fiscal.tipoCambio),
+           obtenido: c.precioM2.toFixed(2), esperado: (100 * cfg.fiscal.tipoCambio).toFixed(2) };
+});
+P('Piso', 'El adhesivo se cotiza por cubeta completa según rendimiento', () => {
+  const c = calcularPartida({ ...base, areaM2: 100, incluirAdhesivo: true }, prod(), cfg);
+  const a = c.accesorios.find((x) => x.clave === 'adhesivo');
+  return { ok: a.cantidad === Math.ceil(100 / cfg.tarifas.rendimientoAdhesivoM2),
+           obtenido: `${a.cantidad} cubetas`, esperado: `${Math.ceil(100 / 18)} cubetas` };
+});
+
+// ---------------------------------------------------------------- cortinas
+
+const telaAlta = prod({ categoria: 'cortina', unidad: 'ml', precio: 340, anchoRolloM: 2.90, m2PorCaja: undefined });
+const telaAngosta = prod({ categoria: 'cortina', unidad: 'ml', precio: 460, anchoRolloM: 1.40, m2PorCaja: undefined });
+
+P('Cortinas', 'Rollo de 2.90 m cubre una caída de 2.60 m: corte al ancho', () => {
+  const c = calcularPartida({ ...base, anchoM: 3.2, altoM: 2.6, cantidad: 1 }, telaAlta, cfg);
+  return { ok: c.metodo === 'al ancho', obtenido: c.metodo, esperado: 'al ancho' };
+});
+P('Cortinas', 'Al ancho: 3.20 m con pliegue 2.5x consume 8.5 ml', () => {
+  const c = calcularPartida({ ...base, anchoM: 3.2, altoM: 2.6, cantidad: 1 }, telaAlta, cfg);
+  return { ok: cerca(c.metrosLineales, 8.5), obtenido: c.metrosLineales.toFixed(2), esperado: '8.50' };
+});
+P('Cortinas', '12 ventanas iguales multiplican la tela por 12', () => {
+  const c = calcularPartida({ ...base, anchoM: 3.2, altoM: 2.6, cantidad: 12 }, telaAlta, cfg);
+  return { ok: cerca(c.metrosLineales, 102), obtenido: c.metrosLineales.toFixed(2), esperado: '102.00' };
+});
+P('Cortinas', 'Rollo angosto obliga a unir paños verticales', () => {
+  const c = calcularPartida({ ...base, anchoM: 3.2, altoM: 2.6, cantidad: 1 }, telaAngosta, cfg);
+  return { ok: c.metodo === 'por paños' && c.panos === 6,
+           obtenido: `${c.metodo}, ${c.panos} paños`, esperado: 'por paños, 6 paños' };
+});
+P('Cortinas', 'Por paños: 6 × (2.60 + 0.30) da 17.40 ml', () => {
+  const c = calcularPartida({ ...base, anchoM: 3.2, altoM: 2.6, cantidad: 1 }, telaAngosta, cfg);
+  return { ok: cerca(c.metrosLineales, 17.4), obtenido: c.metrosLineales.toFixed(2), esperado: '17.40' };
+});
+P('Cortinas', 'El rollo angosto consume más del doble de tela que el de altura', () => {
+  const a = calcularPartida({ ...base, anchoM: 3.2, altoM: 2.6 }, telaAlta, cfg);
+  const b = calcularPartida({ ...base, anchoM: 3.2, altoM: 2.6 }, telaAngosta, cfg);
+  return { ok: b.metrosLineales > a.metrosLineales * 2,
+           obtenido: `${b.metrosLineales.toFixed(1)} vs ${a.metrosLineales.toFixed(1)} ml`, esperado: 'más del doble' };
+});
+P('Cortinas', 'Bajar el pliegue de 2.5x a 1.8x reduce la tela 28%', () => {
+  const a = calcularPartida({ ...base, anchoM: 3.2, altoM: 2.6, pliegue: 2.5 }, telaAlta, cfg);
+  const b = calcularPartida({ ...base, anchoM: 3.2, altoM: 2.6, pliegue: 1.8 }, telaAlta, cfg);
+  const baja = 1 - b.metrosLineales / a.metrosLineales;
+  return { ok: cerca(baja, 0.28, 0.015), obtenido: `${(baja * 100).toFixed(1)}%`, esperado: '≈28%' };
+});
+P('Cortinas', 'La instalación respeta el cargo mínimo por visita', () => {
+  const c = calcularPartida({ ...base, anchoM: 0.8, altoM: 2.4, incluirInstalacion: true }, telaAlta, cfg);
+  return { ok: cerca(c.manoObra, cfg.tarifas.minimoInstalacionCortina),
+           obtenido: c.manoObra.toFixed(2), esperado: cfg.tarifas.minimoInstalacionCortina.toFixed(2) };
+});
+P('Cortinas', 'El riel se calcula 10% más largo que la ventana', () => {
+  const c = calcularPartida({ ...base, anchoM: 3.0, altoM: 2.6, incluirRiel: true }, telaAlta, cfg);
+  const r = c.accesorios.find((a) => a.clave === 'riel');
+  return { ok: cerca(r.cantidad, 3.3), obtenido: `${r.cantidad} ml`, esperado: '3.3 ml' };
+});
+
+// ---------------------------------------------------------------- persianas
+
+const persiana = prod({ categoria: 'persiana', unidad: 'm2', precio: 760, m2PorCaja: undefined });
+
+P('Persianas', 'Una ventana grande se factura por su área real', () => {
+  const c = calcularPartida({ ...base, anchoM: 1.2, altoM: 1.8, cantidad: 1 }, persiana, cfg);
+  return { ok: cerca(c.areaFacturable, 2.16) && c.aplicaMinimo === false,
+           obtenido: `${c.areaFacturable.toFixed(2)} m²`, esperado: '2.16 m²' };
+});
+P('Persianas', 'Una ventana chica paga el área mínima de 1 m²', () => {
+  const c = calcularPartida({ ...base, anchoM: 0.6, altoM: 0.8, cantidad: 1 }, persiana, cfg);
+  return { ok: cerca(c.areaFacturable, 1.0) && c.aplicaMinimo === true,
+           obtenido: `${c.areaFacturable.toFixed(2)} m² (real ${c.areaReal.toFixed(2)})`, esperado: '1.00 m²' };
+});
+P('Persianas', 'El mínimo se aplica por pieza, no al total', () => {
+  const c = calcularPartida({ ...base, anchoM: 0.6, altoM: 0.8, cantidad: 24 }, persiana, cfg);
+  return { ok: cerca(c.areaFacturable, 24), obtenido: `${c.areaFacturable.toFixed(2)} m²`, esperado: '24.00 m²' };
+});
+P('Persianas', 'La motorización se cobra por pieza', () => {
+  const c = calcularPartida({ ...base, anchoM: 1.2, altoM: 1.8, cantidad: 10, motorizada: true }, persiana, cfg);
+  const m = c.accesorios.find((a) => a.clave === 'motor');
+  return { ok: cerca(m.importe, 10 * cfg.tarifas.motorPersianaPza),
+           obtenido: m.importe.toFixed(2), esperado: (10 * cfg.tarifas.motorPersianaPza).toFixed(2) };
+});
+
+// ---------------------------------------------------------------- margen
+
+P('Margen', '35% de margen sobre $100,000 de costo da $153,846.15', () => {
+  const p = prod({ precio: 100000, m2PorCaja: undefined });
+  const c = calcularPartida({ ...base, areaM2: 1, patron: 'recto', margenOverride: 0.35 },
+                            { ...p, categoria: 'accesorio', unidad: 'pza' }, cfg);
+  const cc = calcularPartida({ ...base, cantidad: 1, margenOverride: 0.35 },
+                             { ...p, categoria: 'accesorio', unidad: 'pza' }, cfg);
+  return { ok: cerca(cc.importe, 153846.15, 0.02), obtenido: cc.importe.toFixed(2), esperado: '153846.15' };
+});
+P('Margen', 'Margen no es markup: 35% equivale a multiplicar por 1.538', () => {
+  const p = prod({ precio: 100000, categoria: 'accesorio', unidad: 'pza', m2PorCaja: undefined });
+  const c = calcularPartida({ ...base, cantidad: 1, margenOverride: 0.35 }, p, cfg);
+  return { ok: cerca(1 + c.markupEquivalente, 1.5385, 0.001),
+           obtenido: `×${(1 + c.markupEquivalente).toFixed(4)}`, esperado: '×1.5385' };
+});
+P('Margen', 'Un descuento de 10% deja el margen efectivo en 27.8%', () => {
+  const p = prod({ precio: 100000, categoria: 'accesorio', unidad: 'pza', m2PorCaja: undefined });
+  const c = calcularPartida({ ...base, cantidad: 1, margenOverride: 0.35, descuentoPct: 0.1 }, p, cfg);
+  return { ok: cerca(c.margenEfectivo, 0.2778, 0.001),
+           obtenido: `${(c.margenEfectivo * 100).toFixed(2)}%`, esperado: '27.78%' };
+});
+P('Margen', 'El margen se topa en 90% para no producir precios infinitos', () => {
+  const p = prod({ precio: 1000, categoria: 'accesorio', unidad: 'pza', m2PorCaja: undefined });
+  const c = calcularPartida({ ...base, cantidad: 1, margenOverride: 5 }, p, cfg);
+  return { ok: c.margen === 0.9 && Number.isFinite(c.importe),
+           obtenido: `margen ${c.margen}`, esperado: 'margen 0.9' };
+});
+P('Margen', 'El descuento se topa en 50%', () => {
+  const p = prod({ precio: 1000, categoria: 'accesorio', unidad: 'pza', m2PorCaja: undefined });
+  const c = calcularPartida({ ...base, cantidad: 1, margenOverride: 0.35, descuentoPct: 0.99 }, p, cfg);
+  return { ok: c.descuentoPct === 0.5, obtenido: c.descuentoPct, esperado: 0.5 };
+});
+
+// ---------------------------------------------------------------- totales
+
+const catalogoPrueba = [
+  prod({ id: 'A', precio: 1000, m2PorCaja: 2 }),
+  prod({ id: 'B', categoria: 'accesorio', unidad: 'pza', precio: 500, m2PorCaja: undefined,
+         importado: true, origen: 'Italia', leadTimeDias: 30 }),
+];
+
+P('Totales', 'El IVA de 16% se aplica sobre la base gravable', () => {
+  const t = calcularTotales([{ id: '1', productoId: 'A', ...base, areaM2: 100, margenOverride: 0.35 }],
+                            catalogoPrueba, { ...cfg, _descuentoGlobal: 0 });
+  return { ok: cerca(t.iva, t.baseGravable * 0.16), obtenido: t.iva.toFixed(2),
+           esperado: (t.baseGravable * 0.16).toFixed(2) };
+});
+P('Totales', 'Total = base gravable más IVA', () => {
+  const t = calcularTotales([{ id: '1', productoId: 'A', ...base, areaM2: 100, margenOverride: 0.35 }],
+                            catalogoPrueba, { ...cfg, _descuentoGlobal: 0 });
+  return { ok: cerca(t.total, t.baseGravable + t.iva), obtenido: t.total.toFixed(2),
+           esperado: (t.baseGravable + t.iva).toFixed(2) };
+});
+P('Totales', 'El descuento global reduce la base antes del IVA', () => {
+  const partidas = [{ id: '1', productoId: 'A', ...base, areaM2: 100, margenOverride: 0.35 }];
+  const sin = calcularTotales(partidas, catalogoPrueba, { ...cfg, _descuentoGlobal: 0 });
+  const con = calcularTotales(partidas, catalogoPrueba, { ...cfg, _descuentoGlobal: 0.1 });
+  return { ok: cerca(con.baseGravable, sin.subtotal * 0.9),
+           obtenido: con.baseGravable.toFixed(2), esperado: (sin.subtotal * 0.9).toFixed(2) };
+});
+P('Totales', 'Anticipo y saldo suman exactamente el total', () => {
+  const t = calcularTotales([{ id: '1', productoId: 'A', ...base, areaM2: 100, margenOverride: 0.35 }],
+                            catalogoPrueba, { ...cfg, _descuentoGlobal: 0 });
+  return { ok: cerca(t.anticipo + t.saldo, t.total), obtenido: (t.anticipo + t.saldo).toFixed(2),
+           esperado: t.total.toFixed(2) };
+});
+P('Totales', 'La gráfica del PDF reparte exactamente la base gravable', () => {
+  const t = calcularTotales([{ id: '1', productoId: 'A', ...base, areaM2: 100, incluirInstalacion: true,
+                              incluirZoclo: true, perimetroM: 40, margenOverride: 0.35 }],
+                            catalogoPrueba, { ...cfg, _descuentoGlobal: 0 });
+  const suma = Object.values(t.desgloseVenta).reduce((s, v) => s + v, 0);
+  return { ok: cerca(suma, t.baseGravable, 0.05), obtenido: suma.toFixed(2), esperado: t.baseGravable.toFixed(2) };
+});
+P('Totales', 'La entrega la manda la partida más lenta', () => {
+  const t = calcularTotales([
+    { id: '1', productoId: 'A', ...base, areaM2: 10, margenOverride: 0.35 },
+    { id: '2', productoId: 'B', ...base, cantidad: 1, margenOverride: 0.35 },
+  ], catalogoPrueba, { ...cfg, _descuentoGlobal: 0 });
+  const esperado = 30 + cfg.logistica.diasTransito + cfg.logistica.diasAduana;
+  return { ok: t.leadTimeMax === esperado && t.hayImportados === true,
+           obtenido: `${t.leadTimeMax} días`, esperado: `${esperado} días` };
+});
+P('Totales', 'Un importado suma tránsito y aduana; uno nacional no', () => {
+  const nac = leadTimeProducto(catalogoPrueba[0], cfg);
+  const imp = leadTimeProducto(catalogoPrueba[1], cfg);
+  return { ok: nac === 3 && imp === 30 + 35 + 7, obtenido: `${nac} / ${imp} días`, esperado: '3 / 72 días' };
+});
+P('Totales', 'Una cotización vacía no truena y da cero', () => {
+  const t = calcularTotales([], catalogoPrueba, { ...cfg, _descuentoGlobal: 0 });
+  return { ok: t.total === 0 && t.lineas.length === 0, obtenido: t.total, esperado: 0 };
+});
+P('Totales', 'Una partida que apunta a un producto borrado se ignora', () => {
+  const t = calcularTotales([{ id: '1', productoId: 'NO-EXISTE', ...base, areaM2: 100 }],
+                            catalogoPrueba, { ...cfg, _descuentoGlobal: 0 });
+  return { ok: t.lineas.length === 0, obtenido: t.lineas.length, esperado: 0 };
+});
+
+// ---------------------------------------------------------------- buscador
+
+P('Buscador', 'Varias palabras se combinan: "encino premium aceitado" da un resultado', () => {
+  const r = buscarProductos(CATALOGO_DEMO, 'encino premium aceitado', {});
+  return { ok: r.length === 1, obtenido: `${r.length} resultado(s)`, esperado: '1 resultado' };
+});
+P('Buscador', 'Busca por medida: "encino 9" encuentra el de 9 mm', () => {
+  const r = buscarProductos(CATALOGO_DEMO, 'encino 9', {});
+  return { ok: r.length >= 1 && r[0].producto.espesorMm === 9,
+           obtenido: r[0]?.producto.nombre ?? 'ninguno', esperado: 'espesor 9 mm' };
+});
+P('Buscador', 'Ignora acentos: "porcelanato mate" funciona igual', () => {
+  const r = buscarProductos(CATALOGO_DEMO, 'porcelanato mate', {});
+  return { ok: r.length >= 1, obtenido: `${r.length} resultado(s)`, esperado: '≥1' };
+});
+P('Buscador', 'El filtro de familia acota correctamente', () => {
+  const r = buscarProductos(CATALOGO_DEMO, '', { categoria: 'cortina' });
+  return { ok: r.length > 0 && r.every((x) => x.producto.categoria === 'cortina'),
+           obtenido: `${r.length} cortinas`, esperado: 'solo cortinas' };
+});
+P('Buscador', 'El filtro de importados solo devuelve importados', () => {
+  const r = buscarProductos(CATALOGO_DEMO, '', { soloImportados: true });
+  return { ok: r.length > 0 && r.every((x) => x.producto.importado),
+           obtenido: `${r.length} importados`, esperado: 'todos importados' };
+});
+P('Buscador', 'Una búsqueda sin coincidencias devuelve vacío, no truena', () => {
+  const r = buscarProductos(CATALOGO_DEMO, 'zzzz qqqq', {});
+  return { ok: r.length === 0, obtenido: r.length, esperado: 0 };
+});
+
+// ---------------------------------------------------------------- importación
+
+P('Importación', 'Detecta las columnas de un Excel en español', () => {
+  const m = sugerirMapeo(['SKU', 'Descripción', 'Familia', 'Espesor mm', 'M2 por caja', 'Precio', 'Origen']);
+  return { ok: m.nombre === 'Descripción' && m.precio === 'Precio' && m.m2PorCaja === 'M2 por caja',
+           obtenido: JSON.stringify({ n: m.nombre, p: m.precio, c: m.m2PorCaja }),
+           esperado: 'nombre, precio y caja mapeados' };
+});
+P('Importación', 'Detecta encabezados en inglés', () => {
+  const m = sugerirMapeo(['Code', 'Product Name', 'Category', 'Price', 'Country']);
+  return { ok: m.nombre === 'Product Name' && m.precio === 'Price',
+           obtenido: `${m.nombre} / ${m.precio}`, esperado: 'Product Name / Price' };
+});
+P('Importación', 'Reconoce la familia aunque venga escrita libre', () => {
+  const casos = [['Pisos de madera', 'duela-ingenieria'], ['VINILICO SPC', 'spc'],
+                 ['Cortina blackout', 'cortina'], ['Persianas enrollables', 'persiana'],
+                 ['Loseta', 'porcelanato']];
+  const fallos = casos.filter(([txt, esp]) => normalizarCategoria(txt) !== esp);
+  return { ok: fallos.length === 0, obtenido: fallos.length ? fallos.map(f => f[0]).join(', ') : '5 de 5',
+           esperado: '5 de 5' };
+});
+P('Importación', 'Descarta filas sin nombre o sin precio y explica por qué', () => {
+  const filas = [
+    { Nombre: 'Bueno', Precio: '1,250.50', Categoria: 'spc' },
+    { Nombre: '', Precio: '900', Categoria: 'spc' },
+    { Nombre: 'Sin precio', Precio: '', Categoria: 'spc' },
+  ];
+  const r = mapearFilas(filas, sugerirMapeo(['Nombre', 'Precio', 'Categoria']));
+  return { ok: r.productos.length === 1 && r.descartadas.length === 2,
+           obtenido: `${r.productos.length} entran, ${r.descartadas.length} fuera`, esperado: '1 entra, 2 fuera' };
+});
+P('Importación', 'Limpia precios con signo y separador de miles', () => {
+  const r = mapearFilas([{ Nombre: 'X', Precio: '$1,250.50', Categoria: 'spc' }],
+                        sugerirMapeo(['Nombre', 'Precio', 'Categoria']));
+  return { ok: cerca(r.productos[0].precio, 1250.5), obtenido: r.productos[0].precio, esperado: 1250.5 };
+});
+P('Importación', 'Renombra SKUs duplicados en vez de perder el renglón', () => {
+  const cols = ['SKU', 'Nombre', 'Precio', 'Categoria'];
+  const r = mapearFilas([
+    { SKU: 'A1', Nombre: 'Uno', Precio: '100', Categoria: 'spc' },
+    { SKU: 'A1', Nombre: 'Dos', Precio: '200', Categoria: 'spc' },
+  ], sugerirMapeo(cols));
+  const avisoDup = r.avisos.some((a) => a.includes('duplicado'));
+  return { ok: r.productos.length === 2 && r.productos[1].sku === 'A1-2' && avisoDup,
+           obtenido: `${r.productos.map((p) => p.sku).join(', ')}${avisoDup ? ' + aviso' : ' SIN aviso'}`,
+           esperado: 'A1, A1-2 + aviso' };
+});
+P('Importación', 'Marca como importado lo que no viene de México', () => {
+  const cols = ['Nombre', 'Precio', 'Categoria', 'Origen'];
+  const r = mapearFilas([
+    { Nombre: 'Nacional', Precio: '100', Categoria: 'spc', Origen: 'México' },
+    { Nombre: 'Traído', Precio: '100', Categoria: 'spc', Origen: 'Italia' },
+  ], sugerirMapeo(cols));
+  return { ok: r.productos[0].importado === false && r.productos[1].importado === true,
+           obtenido: `${r.productos[0].importado} / ${r.productos[1].importado}`, esperado: 'false / true' };
+});
+P('Importación', 'Avisa cuando un piso llega sin m² por caja', () => {
+  const r = mapearFilas([{ Nombre: 'Duela X', Precio: '100', Categoria: 'duela-ingenieria' }],
+                        sugerirMapeo(['Nombre', 'Precio', 'Categoria']));
+  return { ok: r.avisos.some((a) => a.includes('m² por caja')), obtenido: r.avisos[0] ?? 'sin aviso',
+           esperado: 'aviso de caja' };
+});
+P('Importación', 'La plantilla CSV trae las columnas que el lector espera', () => {
+  const cols = plantillaCSV().split('\n')[0].split(',');
+  const m = sugerirMapeo(cols);
+  return { ok: Boolean(m.nombre && m.precio && m.categoria && m.m2PorCaja),
+           obtenido: `${cols.length} columnas`, esperado: 'mapeo completo' };
+});
+
+// ---------------------------------------------------------------- catálogo demo
+
+P('Catálogo', 'Todo producto tiene nombre, familia y precio mayor a cero', () => {
+  const malos = CATALOGO_DEMO.filter((p) => !p.nombre || !p.categoria || !(p.precio > 0));
+  return { ok: malos.length === 0, obtenido: malos.length ? malos.map(p => p.sku).join(', ') : `${CATALOGO_DEMO.length} correctos`,
+           esperado: `${CATALOGO_DEMO.length} correctos` };
+});
+P('Catálogo', 'No hay SKUs repetidos', () => {
+  const vistos = new Set();
+  const dup = CATALOGO_DEMO.filter((p) => vistos.size === vistos.add(p.sku).size);
+  return { ok: dup.length === 0, obtenido: dup.length ? dup.map(p => p.sku).join(', ') : 'ninguno', esperado: 'ninguno' };
+});
+P('Catálogo', 'Todo piso trae rendimiento por caja', () => {
+  const familias = ['duela-ingenieria', 'spc', 'laminado', 'deck', 'porcelanato'];
+  const sin = CATALOGO_DEMO.filter((p) => familias.includes(p.categoria) && !(p.m2PorCaja > 0));
+  return { ok: sin.length === 0, obtenido: sin.length ? sin.map(p => p.sku).join(', ') : 'todos completos',
+           esperado: 'todos completos' };
+});
+P('Catálogo', 'Toda cortina declara su ancho de rollo', () => {
+  const sin = CATALOGO_DEMO.filter((p) => p.categoria === 'cortina' && !(p.anchoRolloM > 0));
+  return { ok: sin.length === 0, obtenido: sin.length ? sin.map(p => p.sku).join(', ') : 'todas completas',
+           esperado: 'todas completas' };
+});
+P('Catálogo', 'Todo importado declara su país de origen', () => {
+  const sin = CATALOGO_DEMO.filter((p) => p.importado && !p.origen);
+  return { ok: sin.length === 0, obtenido: sin.length ? sin.map(p => p.sku).join(', ') : 'todos con origen',
+           esperado: 'todos con origen' };
+});
+P('Catálogo', 'Cada producto del catálogo se puede cotizar sin error', () => {
+  const fallos = [];
+  for (const p of CATALOGO_DEMO) {
+    try {
+      const partida = { ...base, areaM2: 50, anchoM: 2, altoM: 2.4, cantidad: 2, margenOverride: 0.35 };
+      const c = calcularPartida(partida, p, cfg);
+      if (!c || !Number.isFinite(c.importe) || c.importe <= 0) fallos.push(p.sku);
+    } catch (e) { fallos.push(`${p.sku}: ${e.message}`); }
+  }
+  return { ok: fallos.length === 0, obtenido: fallos.length ? fallos.slice(0, 3).join(' | ') : `${CATALOGO_DEMO.length} correctos`,
+           esperado: `${CATALOGO_DEMO.length} correctos` };
+});
+
+// ---------------------------------------------------------------- ejecución
+
+// Pruebas asíncronas: recorren la ruta real de lectura de archivo.
+const asincronas = [];
+const A = (grupo, nombre, fn) => asincronas.push({ grupo, nombre, fn });
+
+A('Importación', 'La plantilla CSV se lee de extremo a extremo sin descartes', async () => {
+  const { leerArchivo } = await import('./js/importer.js');
+  const archivo = new File(['﻿' + plantillaCSV()], 'plantilla.csv', { type: 'text/csv' });
+  const d = await leerArchivo(archivo);
+  const r = mapearFilas(d.filas, sugerirMapeo(d.columnas));
+  return { ok: r.productos.length === 3 && r.descartadas.length === 0,
+           obtenido: `${r.productos.length} entran, ${r.descartadas.length} fuera`, esperado: '3 entran, 0 fuera' };
+});
+A('Importación', 'El lector quita el BOM y no ensucia la primera columna', async () => {
+  const { leerArchivo } = await import('./js/importer.js');
+  const archivo = new File(['﻿SKU,Nombre,Precio,Categoria\nA1,Duela,100,spc\n'], 'x.csv', { type: 'text/csv' });
+  const d = await leerArchivo(archivo);
+  return { ok: d.columnas[0] === 'SKU', obtenido: JSON.stringify(d.columnas[0]), esperado: '"SKU"' };
+});
+A('Importación', 'Detecta el punto y coma como separador', async () => {
+  const { leerArchivo } = await import('./js/importer.js');
+  const archivo = new File(['Nombre;Precio;Categoria\nDuela X;1250,50;spc\n'], 'x.csv', { type: 'text/csv' });
+  const d = await leerArchivo(archivo);
+  const r = mapearFilas(d.filas, sugerirMapeo(d.columnas));
+  return { ok: r.productos.length === 1 && cerca(r.productos[0].precio, 1250.5),
+           obtenido: `${r.productos.length} producto a ${r.productos[0]?.precio}`, esperado: '1 producto a 1250.5' };
+});
+A('Importación', 'Respeta las comas dentro de comillas', async () => {
+  const { leerArchivo } = await import('./js/importer.js');
+  const archivo = new File(['Nombre,Precio,Categoria\n"Duela, extra ancha",100,spc\n'], 'x.csv', { type: 'text/csv' });
+  const d = await leerArchivo(archivo);
+  const r = mapearFilas(d.filas, sugerirMapeo(d.columnas));
+  return { ok: r.productos[0]?.nombre === 'Duela, extra ancha',
+           obtenido: r.productos[0]?.nombre, esperado: 'Duela, extra ancha' };
+});
+
+const salida = document.getElementById('salida');
+const tabla = document.createElement('table');
+tabla.className = 't';
+let pasan = 0, fallan = 0, grupoActual = '';
+
+for (const p of pruebas) {
+  let r;
+  try { r = p.fn(); }
+  catch (e) { r = { ok: false, obtenido: `error: ${e.message}`, esperado: '—' }; }
+
+  if (p.grupo !== grupoActual) {
+    grupoActual = p.grupo;
+    const tr = tabla.insertRow();
+    const td = tr.insertCell(); td.colSpan = 3; td.className = 'grupo'; td.textContent = p.grupo;
+  }
+
+  r.ok ? pasan++ : fallan++;
+  const tr = tabla.insertRow();
+  if (!r.ok) tr.style.background = 'var(--danger-soft)';
+  tr.insertCell().innerHTML = `<span class="${r.ok ? 'ok' : 'no'}">${r.ok ? '✓' : '✗'}</span>`;
+  tr.insertCell().textContent = p.nombre;
+  const td = tr.insertCell();
+  td.textContent = r.ok ? String(r.obtenido) : `obtenido ${r.obtenido} · esperado ${r.esperado}`;
+  if (!r.ok) td.style.color = 'var(--danger)';
+}
+salida.append(tabla);
+
+for (const p of asincronas) {
+  let r;
+  try { r = await p.fn(); }
+  catch (e) { r = { ok: false, obtenido: `error: ${e.message}`, esperado: '—' }; }
+
+  if (p.grupo !== grupoActual) {
+    grupoActual = p.grupo;
+    const tr = tabla.insertRow();
+    const td = tr.insertCell(); td.colSpan = 3; td.className = 'grupo'; td.textContent = p.grupo;
+  }
+
+  r.ok ? pasan++ : fallan++;
+  const tr = tabla.insertRow();
+  if (!r.ok) tr.style.background = 'var(--danger-soft)';
+  tr.insertCell().innerHTML = `<span class="${r.ok ? 'ok' : 'no'}">${r.ok ? '✓' : '✗'}</span>`;
+  tr.insertCell().textContent = p.nombre;
+  const td = tr.insertCell();
+  td.textContent = r.ok ? String(r.obtenido) : `obtenido ${r.obtenido} · esperado ${r.esperado}`;
+  if (!r.ok) td.style.color = 'var(--danger)';
+}
+
+const total = pruebas.length + asincronas.length;
+document.getElementById('resumen').innerHTML =
+  `<div class="nota ${fallan ? 'nota--danger' : 'nota--ok'}">
+     <span><strong>${pasan} de ${total} pruebas pasan.</strong>
+     ${fallan ? `${fallan} fallan y hay que corregirlas antes de cotizar con clientes.`
+              : 'El motor de cálculo está correcto.'}</span>
+   </div>`;
+
+console.log(`[QA] ${pasan}/${total} pasan, ${fallan} fallan`);
+window.__QA__ = { pasan, fallan, total };
+</script>
+</body>
+</html>

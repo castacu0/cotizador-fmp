@@ -106,7 +106,7 @@ function arrancarTour() {
       titulo: 'Todo empieza por el buscador',
       texto: 'Escribe varias palabras juntas y la búsqueda las combina: "encino 14 aceitado" llega a un solo material. ' +
              'También responde a medidas, colores y acabados.',
-      selector: '.js-buscador', posicion: 'derecha',
+      selector: '.js-buscador .search', posicion: 'abajo',
       antes: () => irA('#/cotizador'),
     },
     {
