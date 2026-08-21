@@ -26,11 +26,18 @@ El cuello de botella no es el precio por metro, es todo lo que va alrededor:
 ## Cómo se usa
 
 1. **Cotizar**: busca el material, captura las medidas, marca accesorios, descarga el PDF.
-2. **Catálogo**: alta, edición y búsqueda de materiales. Exporta a CSV.
-3. **Ayuda**: fórmulas explicadas y material de capacitación para el equipo de ventas.
-4. **Ajustes**: datos de la empresa, margen, IVA, tipo de cambio, tarifas e importación del catálogo.
+   Al terminar se abre el centro de envío con nueve plantillas de seguimiento.
+2. **Catálogo**: alta, edición y búsqueda de materiales. Cambio de precios por familia.
+   Cada material trae su nombre en inglés, visible y buscable. Exporta a CSV.
+3. **Ahorro**: qué ha ahorrado la empresa, margen promedio, valor cotizado por mes y
+   bitácora de quién cambió cada precio.
+4. **Servicios**: qué incluye la herramienta hoy y qué entra en la Fase 2.
+5. **Ayuda**: fórmulas explicadas y material de capacitación para el equipo de ventas.
+6. **Ajustes**: quién usa el equipo, datos de la empresa, margen, IVA, tipo de cambio,
+   tarifas e importación del catálogo.
 
-El botón **Tutorial**, arriba a la derecha, hace un recorrido guiado por todas las funciones.
+El botón **Tutorial**, arriba a la derecha, hace un recorrido guiado de catorce pasos por
+todas las funciones.
 El botón **Cargar ejemplo** arma una cotización completa de hotel para ver la aplicación funcionando.
 
 Atajos: `/` enfoca el buscador, `⌘K` o `Ctrl+K` va al cotizador y busca.
@@ -60,7 +67,9 @@ Hay que decirlos claro antes de operar con clientes reales:
   que carga una persona no lo ven las demás. Se comparte exportando el respaldo JSON
   desde Ajustes y restaurándolo en las otras máquinas.
 - **Si se limpian los datos del navegador, se pierde todo.** Exportar respaldo con regularidad.
-- **No hay usuarios ni permisos.** Cualquiera que abra el enlace ve la aplicación.
+- **No hay usuarios ni permisos.** Cualquiera que abra el enlace ve la aplicación. La
+  bitácora atribuye los cambios al nombre capturado en Ajustes: es atribución por
+  confianza, no control de acceso.
 - **El catálogo que viene cargado es de demostración.** Los precios son de referencia
   de mercado, no los de la empresa.
 
@@ -81,14 +90,17 @@ js/
   app.js              Arranque, ruteo y definición del tutorial
   state.js            Estado global y persistencia local
   pricing.js          Motor de cálculo. Toda la lógica comercial vive aquí
-  pdf.js              Generación del PDF, tope estricto de 2 páginas
+  pdf.js              Generación del PDF por flujo, tope estricto de 3 páginas
+  mensajes.js         Plantillas de envío y seguimiento
   importer.js         Lectura de Excel y CSV, mapeo de columnas
   catalog-seed.js     Catálogo de demostración
   demo.js             Cotización de ejemplo
   tour.js             Tutorial guiado
   ui.js               Componentes compartidos
   format.js           Formato es-MX y utilidades de DOM
-  views/              Cotizador, catálogo, ayuda y ajustes
+  views/              Cotizador, catálogo, ahorro, servicios, ayuda y ajustes
+pruebas.html          74 pruebas del motor de cálculo, importación y buscador
+servidor-dev.py       Servidor local sin caché para desarrollo
 vendor/               jsPDF y SheetJS, incluidos localmente
 ```
 
@@ -99,10 +111,11 @@ Sin build, sin dependencias que instalar. JavaScript nativo con módulos ES.
 ## Correr en local
 
 ```bash
-python3 -m http.server 4173
+python3 servidor-dev.py 4173
 ```
 
-Y abrir `http://localhost:4173`.
+Y abrir `http://localhost:4173`. Las pruebas del motor están en
+`http://localhost:4173/pruebas.html` y conviene correrlas después de cambiar tarifas.
 
 Tiene que servirse por HTTP: los módulos ES no cargan abriendo el archivo directamente.
 
