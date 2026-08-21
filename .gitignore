@@ -1,0 +1,8 @@
+.DS_Store
+node_modules/
+*.log
+# Nunca subir catálogos ni respaldos con precios reales
+catalogo-*.csv
+respaldo-*.json
+*.xlsx
+*.xls
