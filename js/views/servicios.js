@@ -3,6 +3,7 @@
 
 import { el } from '../format.js';
 import { icono, accion, desplegable, nota } from '../ui.js';
+import { CONTACTO, abrirAsistente, CONOCIMIENTO } from '../asistente.js';
 
 const INCLUIDO = [
   {
@@ -12,7 +13,7 @@ const INCLUIDO = [
   },
   {
     icono: 'regla', titulo: 'Motor de cálculo por familia',
-    detalle: 'Cinco motores distintos: pisos con merma y caja completa, cortinería por pliegue y ancho de rollo, persianas con área mínima, porcelanato con boquilla, y accesorios por pieza.',
+    detalle: 'Motores distintos por familia: pisos con merma y caja completa, cortinería por pliegue y ancho de rollo, persianas con área mínima, toldos y pérgolas por área de sombra con mínimo por equipo, porcelanato con boquilla, y accesorios por pieza.',
     estado: 'Activo',
   },
   {
@@ -51,8 +52,23 @@ const INCLUIDO = [
     estado: 'Activo',
   },
   {
+    icono: 'ayuda', titulo: 'Asistente de dudas',
+    detalle: `Responde al instante las preguntas más comunes sobre cómo usar la herramienta, cómo calcula y qué recomendar. Trae ${CONOCIMIENTO.length} respuestas cargadas y, cuando no tiene una, pasa el contacto de soporte en vez de inventar.`,
+    estado: 'Activo',
+  },
+  {
+    icono: 'regla', titulo: 'Modo de texto grande',
+    detalle: 'Un botón agranda toda la aplicación y separa los botones, sin pelearse con el zoom del navegador. Queda guardado por computadora.',
+    estado: 'Activo',
+  },
+  {
+    icono: 'copiar', titulo: 'Respaldo del catálogo',
+    detalle: 'Un archivo con todo: catálogo, precios, tarifas, ajustes, historial y bitácora. La aplicación avisa cuando hay cambios sin respaldar.',
+    estado: 'Activo',
+  },
+  {
     icono: 'ayuda', titulo: 'Capacitación integrada',
-    detalle: 'Tutorial guiado de doce pasos y sección de ayuda con las fórmulas explicadas, qué recomendar según el proyecto y los errores que cuestan dinero.',
+    detalle: 'Tutorial guiado de quince pasos y sección de ayuda con las fórmulas explicadas, buenas prácticas del equipo, qué recomendar según el proyecto y los errores que cuestan dinero.',
     estado: 'Activo',
   },
 ];
@@ -131,5 +147,22 @@ export function render(raiz) {
       desplegable({ titulo: '¿Los precios quedan expuestos en internet?' },
         el('p', {}, 'No. La aplicación se publica sin catálogo real: trae uno de demostración con precios de referencia de mercado. El catálogo de la empresa se carga desde cada computadora y nunca se guarda en el servidor.')),
       desplegable({ titulo: '¿Qué incluye el soporte mensual?' },
-        el('p', {}, 'Actualización de precios y catálogo, cambios al formato del PDF, nuevas familias de producto, atención a los usuarios y respaldo de la información.')))));
+        el('p', {}, 'Actualización de precios y catálogo, cambios al formato del PDF, nuevas familias de producto, atención a los usuarios y respaldo de la información.'))),
+
+    el('section', { class: 'card card--pad-lg' },
+      el('div', { class: 'row', style: 'justify-content:space-between;align-items:flex-start;gap:24px' },
+        el('div', { style: 'flex:1;min-width:220px' },
+          el('p', { class: 'eyebrow' }, 'Contacto'),
+          el('h2', { class: 'title mt-3' }, '¿Dudas sobre el servicio?'),
+          el('p', { class: 'lead mt-3' },
+            `${CONTACTO.nombre} atiende directo, sin ticket ni intermediarios. `,
+            'Para dudas de uso, el asistente contesta al instante.')),
+        el('div', { class: 'stack stack-2' },
+          el('button', { class: 'btn btn--primary', onclick: () => abrirAsistente() },
+            icono('ayuda', 15), 'Preguntar al asistente'),
+          el('a', {
+            class: 'btn', target: '_blank', rel: 'noopener',
+            href: `https://wa.me/${CONTACTO.whatsappE164}?text=${encodeURIComponent('Hola Cesar, tengo una duda del cotizador: ')}`,
+          }, `WhatsApp ${CONTACTO.whatsapp}`),
+          el('a', { class: 'btn', href: `mailto:${CONTACTO.email}` }, CONTACTO.email))))));
 }

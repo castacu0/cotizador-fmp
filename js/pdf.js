@@ -324,6 +324,10 @@ function descripcionPartida(linea) {
     partes.push(`${fmtNum(c.ancho)} × ${fmtNum(c.alto)} m · ${c.cantidad} juego(s)`);
     partes.push(`Pliegue ${fmtNum(c.pliegue, 1)}x · corte ${c.metodo}`);
     if (p.tela) partes.push(p.tela);
+  } else if (c.tipo === 'exterior') {
+    partes.push(`${fmtNum(c.ancho)} m de ancho × ${fmtNum(c.salida)} m de salida · ${c.cantidad} equipo(s)`);
+    if (c.aplicaMinimo) partes.push(`Área mínima facturable ${fmtNum(c.areaMinima)} m²`);
+    if (p.tela) partes.push(p.tela);
   } else if (c.tipo === 'persiana') {
     partes.push(`${fmtNum(c.ancho)} × ${fmtNum(c.alto)} m · ${c.cantidad} pza`);
     if (c.aplicaMinimo) partes.push(`Área mínima facturable ${fmtNum(c.areaMinima)} m²`);
@@ -340,7 +344,7 @@ function descripcionPartida(linea) {
 function cantidadPartida(c) {
   if (c.tipo === 'piso') return { cant: fmtNum(c.areaFacturable), un: 'm²' };
   if (c.tipo === 'cortina') return { cant: fmtNum(c.metrosLineales, 1), un: 'ml' };
-  if (c.tipo === 'persiana') return { cant: fmtNum(c.areaFacturable), un: 'm²' };
+  if (c.tipo === 'persiana' || c.tipo === 'exterior') return { cant: fmtNum(c.areaFacturable), un: 'm²' };
   return { cant: fmtNum(c.cantidad, 0), un: 'pza' };
 }
 
@@ -578,7 +582,7 @@ function bloqueTotales(L, totales) {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(7.6);
   tinta(doc, C.blanco);
-  doc.text('TOTAL', cajaX + 5, L.y + 3.2, { charSpace: 0.8 });
+  doc.text('TOTAL MXN', cajaX + 5, L.y + 3.2, { charSpace: 0.8 });
   doc.setFontSize(11.5);
   doc.text(fmtMXN(totales.total), cajaX + cajaW - 5, L.y + 3.6, { align: 'right' });
   L.y += 12;
@@ -586,7 +590,7 @@ function bloqueTotales(L, totales) {
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(6.4);
   tinta(doc, C.suave);
-  doc.text(`Precios en ${config.fiscal.moneda}. IVA desglosado.`, A4.w - M, L.y + 2.6, { align: 'right' });
+  doc.text('Todos los importes en pesos mexicanos (MXN). IVA desglosado.', A4.w - M, L.y + 2.6, { align: 'right' });
   L.y += 6;
 }
 
@@ -617,7 +621,7 @@ function listaSpecs(linea) {
   if (p.anchoRolloM) specs.push(['Ancho de rollo', `${fmtNum(p.anchoRolloM)} m`]);
   if (c.tipo === 'piso') specs.push(['Superficie facturada', `${fmtNum(c.areaFacturable)} m²`]);
   if (c.tipo === 'cortina') specs.push(['Tela requerida', `${fmtNum(c.metrosLineales, 1)} ml`]);
-  if (c.tipo === 'persiana') specs.push(['Área facturada', `${fmtNum(c.areaFacturable)} m²`]);
+  if (c.tipo === 'persiana' || c.tipo === 'exterior') specs.push(['Área facturada', `${fmtNum(c.areaFacturable)} m²`]);
   return specs;
 }
 
@@ -757,7 +761,7 @@ function esquemaPago(L, totales) {
 
   const a = config.comercial.anticipoPct;
   const pagos = [
-    [`Anticipo ${fmtNum(a * 100, 0)}%`, 'A la firma. Libera fabricación y pedido de importación.', totales.anticipo],
+    [`Anticipo ${fmtNum(a * 100, 0)}%`, 'A la firma, en pesos mexicanos. Libera fabricación y pedido de importación.', totales.anticipo],
     [`Saldo ${fmtNum((1 - a) * 100, 0)}%`, 'Contra entrega de material en obra, previo a instalación.', totales.saldo],
   ];
   for (const [etq, nota, monto] of pagos) {
@@ -781,7 +785,7 @@ function esquemaPago(L, totales) {
 function condiciones(L) {
   const { doc, config } = L;
   const textos = [
-    `Vigencia de ${config.comercial.vigenciaDias} días naturales. Los precios de producto importado están sujetos al tipo de cambio del día de la orden.`,
+    `Todos los precios están expresados en pesos mexicanos (MXN). Vigencia de ${config.comercial.vigenciaDias} días naturales. Los precios de producto importado están sujetos al tipo de cambio del día de la orden.`,
     'Las cantidades se calculan sobre las medidas proporcionadas por el cliente. El levantamiento en sitio puede modificarlas y se ajusta antes de la orden.',
     'El material se surte por caja completa. La merma indicada por partida ya está considerada en el importe.',
     'No incluye: retiro de piso existente, nivelación de sustrato, obra civil, trabajos eléctricos ni cancelería.',

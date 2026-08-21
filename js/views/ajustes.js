@@ -17,14 +17,41 @@ export function render(raiz) {
       el('p', { class: 'lead mt-3' },
         'Los datos que salen en el PDF, las tarifas del cálculo y la carga del catálogo real.')),
 
+    avisoRespaldo(s),
+
     el('div', { class: 'stack stack-3' },
+      bloqueRespaldo(s),
       bloqueUsuario(s),
       bloqueEmpresa(s),
       bloqueComercial(s),
       bloqueTarifas(s),
       bloqueCatalogo(s),
-      bloqueRespaldo(s),
       bloqueHistorial(s))));
+}
+
+/** Recordatorio visible cuando hay cambios sin respaldar. */
+function avisoRespaldo(s) {
+  const pendientes = S.cambiosSinRespaldar();
+  const dias = S.diasSinRespaldo();
+  if (pendientes === 0) return null;
+
+  const texto = dias === null
+    ? `Nunca has guardado un respaldo y ya hay ${pendientes} cambio(s) registrado(s). Si se limpia este navegador, se pierde todo.`
+    : `Hay ${pendientes} cambio(s) desde tu último respaldo, hace ${dias} día(s).`;
+
+  return el('div', { class: 'respaldo-aviso mb-5' },
+    icono('alerta', 17),
+    el('span', {}, texto),
+    el('button', { class: 'btn btn--sm', onclick: descargarRespaldo },
+      icono('bajar', 14), 'Guardar respaldo ahora'));
+}
+
+function descargarRespaldo() {
+  const s = S.obtener();
+  descargarTexto(`respaldo-cotizador-${new Date().toISOString().slice(0, 10)}.json`,
+    S.exportarRespaldo(), 'application/json');
+  avisar(`Respaldo guardado con ${s.catalogo.length} materiales`);
+  window.dispatchEvent(new CustomEvent('fmp:rerender'));
 }
 
 const guardarEn = (ruta) => (e) => {
@@ -469,6 +496,9 @@ function abrirImportador() {
 // --------------------------------------------------------------------------- respaldo
 
 function bloqueRespaldo(s) {
+  const dias = S.diasSinRespaldo();
+  const pendientes = S.cambiosSinRespaldar();
+
   const inputRestaurar = el('input', {
     type: 'file', accept: '.json', class: 'hidden',
     onchange: async (ev) => {
@@ -476,14 +506,14 @@ function bloqueRespaldo(s) {
       if (!f) return;
       const ok = await confirmar({
         titulo: 'Restaurar respaldo', textoOk: 'Restaurar', peligro: true,
-        mensaje: 'Se sustituye todo: catálogo, ajustes, cotización en curso e historial.',
+        mensaje: 'Se sustituye todo lo que hay en esta computadora: catálogo, ajustes, cotización en curso, historial y bitácora.',
       });
       if (!ok) return;
       try {
         S.importarRespaldo(await f.text());
         avisar('Respaldo restaurado');
         S.guardarAhora();
-      window.dispatchEvent(new CustomEvent('fmp:rerender'));
+        window.dispatchEvent(new CustomEvent('fmp:rerender'));
       } catch (err) {
         avisar(`Archivo inválido: ${err.message}`, 'err');
       }
@@ -491,31 +521,48 @@ function bloqueRespaldo(s) {
   });
 
   return accion(
-    { iconoNombre: 'copiar', titulo: 'Respaldo y sincronización',
-      pista: 'Cómo mover los datos entre las computadoras del equipo' },
+    { iconoNombre: 'copiar', titulo: 'Respaldo del catálogo',
+      abierto: pendientes > 0,
+      pista: dias === null
+        ? 'Todavía no has guardado ninguno. Es lo primero que conviene hacer.'
+        : `Último respaldo hace ${dias} día(s) · ${pendientes} cambio(s) desde entonces` },
     el('hr', { class: 'rule mt-0' }),
-    nota('Los datos viven en este navegador, en esta computadora. No hay servidor: lo que cargues aquí no lo ven tus compañeros y se pierde si se limpian los datos del navegador.',
-         'warn', 'alerta'),
-    el('p', { class: 'small muted mt-4 mb-4' },
-      'Mientras no exista la versión con base de datos, la forma de trabajar en equipo es: una persona mantiene el catálogo, exporta el respaldo y el resto lo restaura. ',
-      'Hazlo cada vez que cambien precios.'),
+
+    el('p', { class: 'lead mb-4' },
+      'El respaldo es un archivo con todo: catálogo, precios, tarifas, ajustes, historial y bitácora. ',
+      'Guárdalo en una carpeta o mándatelo por correo. Es lo único que recupera la información ',
+      'si se formatea la computadora o alguien limpia el navegador.'),
+
     el('div', { class: 'row row--tight' },
-      el('button', {
-        class: 'btn',
-        onclick: () => {
-          descargarTexto(`respaldo-cotizador-${new Date().toISOString().slice(0, 10)}.json`,
-            S.exportarRespaldo(), 'application/json');
-          avisar('Respaldo descargado');
-        },
-      }, icono('bajar', 15), 'Exportar respaldo'),
-      el('button', { class: 'btn', onclick: () => inputRestaurar.click() }, icono('subir', 15), 'Restaurar respaldo'),
-      inputRestaurar,
+      el('button', { class: 'btn btn--primary btn--lg js-respaldo', onclick: descargarRespaldo },
+        icono('bajar', 16), 'Guardar respaldo'),
+      el('button', { class: 'btn', onclick: () => inputRestaurar.click() },
+        icono('subir', 15), 'Restaurar desde un archivo'),
+      inputRestaurar),
+
+    el('div', { class: 'mt-5' },
+      el('p', { class: 'field__label mb-3' }, 'Cuándo conviene hacerlo'),
+      el('ul', { class: 'small muted', style: 'margin:0;padding-left:20px;line-height:1.7' },
+        el('li', {}, 'Cada vez que cambien precios o importes un catálogo nuevo.'),
+        el('li', {}, 'Antes de restaurar otro respaldo o de restablecer la aplicación.'),
+        el('li', {}, 'El primer día de cada mes, aunque no haya cambios.'),
+        el('li', {}, 'Antes de que alguien de sistemas toque la computadora.'))),
+
+    el('hr', { class: 'rule' }),
+    el('p', { class: 'field__label mb-3' }, 'Compartir el catálogo con el equipo'),
+    el('p', { class: 'small muted mb-4' },
+      'Mientras no exista la versión con base de datos, así se sincroniza: una persona mantiene ',
+      'el catálogo, guarda el respaldo y lo comparte. Los demás lo restauran en su computadora.'),
+
+    el('div', { class: 'mt-4' },
+      nota('Restablecer borra todo y devuelve el catálogo de demostración. Guarda un respaldo antes.', 'warn', 'alerta')),
+    el('div', { class: 'row row--tight mt-4' },
       el('button', {
         class: 'btn btn--danger',
         onclick: async () => {
           const ok = await confirmar({
             titulo: 'Restablecer la aplicación', textoOk: 'Borrar todo', peligro: true,
-            mensaje: 'Se borran catálogo, ajustes, cotización en curso e historial, y vuelve el catálogo de demostración.',
+            mensaje: 'Se borran catálogo, ajustes, cotización en curso, historial y bitácora, y vuelve el catálogo de demostración.',
           });
           if (!ok) return;
           S.restablecer();

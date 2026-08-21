@@ -11,7 +11,9 @@ const P = (o) => ({
   ...o,
 });
 
-export const CATALOGO_DEMO = [
+import { CATALOGO_EXTRA } from './catalog-extra.js';
+
+const BASE = [
   // ---------------------------------------------------------------- DUELA DE INGENIERÍA
   P({ id: 'DI-ENC-09-190', sku: 'DI-ENC-09-190', nombreEn: 'Engineered Oak Flooring', nombre: 'Duela de ingeniería Encino Natural',
       categoria: 'duela-ingenieria', especie: 'Encino', espesorMm: 9, capaNobleMm: 0.6,
@@ -343,3 +345,5 @@ export const CATALOGO_DEMO = [
       leadTimeDias: 30,
       caracteristicas: ['Radiofrecuencia', 'Compatible con domótica', 'Programable'] }),
 ];
+
+export const CATALOGO_DEMO = [...BASE, ...CATALOGO_EXTRA];

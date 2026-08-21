@@ -1,7 +1,8 @@
 # Cotizador · Fernando Martínez Parente
 
 Aplicación web para cotizar pisos de ingeniería, SPC, laminado, deck, porcelanato,
-cortinas y persianas, con PDF de hasta tres páginas listo para enviar al cliente.
+cortinas, persianas, toldos y pérgolas, con PDF de hasta tres páginas listo para
+enviar al cliente.
 
 No necesita instalación ni servidor: son archivos estáticos que corren en el navegador.
 
@@ -29,15 +30,15 @@ El cuello de botella no es el precio por metro, es todo lo que va alrededor:
    Al terminar se abre el centro de envío con nueve plantillas de seguimiento.
 2. **Catálogo**: alta, edición y búsqueda de materiales. Cambio de precios por familia.
    Cada material trae su nombre en inglés, visible y buscable. Exporta a CSV.
-3. **Ahorro**: qué ha ahorrado la empresa, margen promedio, valor cotizado por mes y
-   bitácora de quién cambió cada precio.
+3. **Ahorro**: qué ha ahorrado la empresa, margen promedio, valor cotizado por mes,
+   registro de actividad (quién entró y quién cotizó) y bitácora de cambios de precio.
 4. **Servicios**: qué incluye la herramienta hoy y qué entra en la Fase 2.
 5. **Ayuda**: fórmulas explicadas y material de capacitación para el equipo de ventas.
 6. **Ajustes**: quién usa el equipo, datos de la empresa, margen, IVA, tipo de cambio,
    tarifas e importación del catálogo.
 
-El botón **Tutorial**, arriba a la derecha, hace un recorrido guiado de catorce pasos por
-todas las funciones.
+Arriba a la derecha hay tres botones: **Texto grande** agranda toda la interfaz,
+**Dudas** abre el asistente y **Tutorial** hace un recorrido guiado de quince pasos.
 El botón **Cargar ejemplo** arma una cotización completa de hotel para ver la aplicación funcionando.
 
 Atajos: `/` enfoca el buscador, `⌘K` o `Ctrl+K` va al cotizador y busca.
@@ -56,6 +57,27 @@ La columna más importante es **m² por caja**. Sin ella no hay redondeo a caja 
 y la cotización queda corta.
 
 Hay una plantilla CSV descargable en esa misma pantalla.
+
+---
+
+## Respaldo
+
+`Ajustes > Respaldo del catálogo > Guardar respaldo` descarga un archivo con todo:
+catálogo, precios, tarifas, ajustes, historial y bitácora. La aplicación avisa sola
+cuando hay cambios sin respaldar.
+
+Es lo único que recupera la información si se formatea la computadora o alguien limpia
+el navegador. Conviene hacerlo cada vez que cambien precios y el primer día de cada mes.
+
+---
+
+## Soporte
+
+Cesar Castañón · WhatsApp 55 7882 3635 · cesar@castacu0.com
+
+Dentro de la aplicación, el botón **Dudas** abre un asistente con las preguntas más
+comunes ya respondidas. No es un modelo de lenguaje: responde de una base de conocimiento
+curada y, cuando no tiene la respuesta, ofrece el contacto directo en vez de inventar.
 
 ---
 
@@ -92,6 +114,8 @@ js/
   pricing.js          Motor de cálculo. Toda la lógica comercial vive aquí
   pdf.js              Generación del PDF por flujo, tope estricto de 3 páginas
   mensajes.js         Plantillas de envío y seguimiento
+  asistente.js        Asistente de dudas y contacto de soporte
+  catalog-extra.js    Ampliación del catálogo de demostración
   importer.js         Lectura de Excel y CSV, mapeo de columnas
   catalog-seed.js     Catálogo de demostración
   demo.js             Cotización de ejemplo
@@ -99,7 +123,7 @@ js/
   ui.js               Componentes compartidos
   format.js           Formato es-MX y utilidades de DOM
   views/              Cotizador, catálogo, ahorro, servicios, ayuda y ajustes
-pruebas.html          74 pruebas del motor de cálculo, importación y buscador
+pruebas.html          83 pruebas del motor de cálculo, importación y buscador
 servidor-dev.py       Servidor local sin caché para desarrollo
 vendor/               jsPDF y SheetJS, incluidos localmente
 ```

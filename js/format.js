@@ -16,6 +16,9 @@ export const fmtNum = (n, dec = 2) =>
 
 export const fmtPct = (n, dec = 1) => `${fmtNum(n * 100, dec)}%`;
 
+/** Igual que fmtMXN pero diciendo la moneda. Para totales y documentos. */
+export const fmtMXNLargo = (n, dec = 2) => `${fmtMXN(n, dec)} MXN`;
+
 export const fmtFecha = (d) =>
   new Intl.DateTimeFormat('es-MX', { day: '2-digit', month: 'long', year: 'numeric' })
     .format(d instanceof Date ? d : new Date(d));

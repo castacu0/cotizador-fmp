@@ -1,6 +1,6 @@
 // Vista principal: armar una cotización y sacar el PDF.
 
-import { el, $, fmtMXN, fmtNum, fmtFecha, sumarDias, uid } from '../format.js';
+import { el, $, fmtMXN, fmtMXNLargo, fmtNum, fmtFecha, sumarDias, uid } from '../format.js';
 import * as S from '../state.js';
 import { CATEGORIAS, PATRONES, PLIEGUES, calcularPartida, calcularTotales,
          estimarPerimetro, leadTimeProducto, precioBaseMXN } from '../pricing.js';
@@ -303,6 +303,9 @@ function resumenPartida(c, p) {
   if (c.tipo === 'persiana') {
     return `${fmtNum(c.ancho)} × ${fmtNum(c.alto)} m  ·  ${c.cantidad} pza  ·  ${fmtNum(c.areaFacturable)} m² facturados`;
   }
+  if (c.tipo === 'exterior') {
+    return `${fmtNum(c.ancho)} m de ancho × ${fmtNum(c.salida)} m de salida  ·  ${c.cantidad} equipo(s)  ·  ${fmtNum(c.areaFacturable)} m² de sombra`;
+  }
   return `${fmtNum(c.cantidad, 0)} ${p.unidad === 'ml' ? 'ml' : 'pza'}`;
 }
 
@@ -340,6 +343,14 @@ function desglose(c, p) {
         'La medida real es menor al mínimo del fabricante'));
     }
     filas.push(fila('Área facturada', `${fmtNum(c.areaFacturable)} m²`, `${c.cantidad} pieza(s)`));
+    filas.push(fila(`Material a ${fmtMXN(c.precioM2)}/m²`, fmtMXN(c.material)));
+  } else if (c.tipo === 'exterior') {
+    filas.push(fila('Medida del equipo', `${fmtNum(c.ancho)} × ${fmtNum(c.salida)} m = ${fmtNum(c.areaReal)} m²`));
+    if (c.aplicaMinimo) {
+      filas.push(fila('Área mínima facturable', `${fmtNum(c.areaMinima)} m²`,
+        'La estructura y el anclaje cuestan casi lo mismo en un equipo chico'));
+    }
+    filas.push(fila('Área facturada', `${fmtNum(c.areaFacturable)} m²`, `${c.cantidad} equipo(s)`));
     filas.push(fila(`Material a ${fmtMXN(c.precioM2)}/m²`, fmtMXN(c.material)));
   } else {
     filas.push(fila('Cantidad', `${fmtNum(c.cantidad, 0)} ${p.unidad}`));
@@ -389,6 +400,7 @@ function abrirEditorPartida(producto, existente = null) {
     // cortina / persiana
     anchoM: '', altoM: '', cantidad: 1, pliegue: 2.5,
     incluirRiel: true, rielMotorizado: false, incluirForro: false, motorizada: false,
+    sensorViento: false,
     // comercial
     margenOverride: null, descuentoPct: 0,
   };
@@ -417,6 +429,8 @@ function abrirEditorPartida(producto, existente = null) {
     formulario = formularioCortina(borrador, producto, setCampo);
   } else if (familia === 'persiana') {
     formulario = formularioPersiana(borrador, producto, setCampo);
+  } else if (familia === 'exterior') {
+    formulario = formularioExterior(borrador, producto, setCampo);
   } else {
     formulario = el('div', { class: 'grid-2' },
       campo({ etiqueta: 'Cantidad', sufijo: producto.unidad },
@@ -482,6 +496,10 @@ function tarjetasPreview(c, p) {
   } else if (c.tipo === 'persiana') {
     t.push(kpi('Área facturada', `${fmtNum(c.areaFacturable)} m²`, c.aplicaMinimo ? 'Aplica área mínima' : `${c.cantidad} pieza(s)`));
     t.push(kpi('Por pieza', `${fmtNum(c.areaFacturableUnitaria)} m²`, `Real ${fmtNum(c.areaReal)} m²`));
+  } else if (c.tipo === 'exterior') {
+    t.push(kpi('Área de sombra', `${fmtNum(c.areaFacturable)} m²`,
+      c.aplicaMinimo ? 'Aplica área mínima por equipo' : `${c.cantidad} equipo(s)`));
+    t.push(kpi('Por equipo', `${fmtNum(c.areaFacturableUnitaria)} m²`, `Real ${fmtNum(c.areaReal)} m²`));
   } else {
     t.push(kpi('Cantidad', `${fmtNum(c.cantidad, 0)}`, p.unidad));
     t.push(kpi('Unitario', fmtMXN(c.precioUnitario), ''));
@@ -653,6 +671,42 @@ function formularioCortina(b, p, set) {
                   onChange: (v) => set('incluirInstalacion', v) }))));
 }
 
+function formularioExterior(b, p, set) {
+  const esPergola = p.categoria === 'pergola';
+  return el('div', { class: 'stack stack-4' },
+    el('div', { class: 'grid-3' },
+      campo({ etiqueta: 'Ancho del equipo', sufijo: 'm',
+              pista: esPergola ? 'Lado paralelo a la fachada' : 'Ancho del toldo, no de la ventana' },
+        entrada({ valor: b.anchoM, tipo: 'number', paso: '0.01', min: '0', numero: true, placeholder: '5.00',
+                  onInput: (e) => set('anchoM', e.target.value) })),
+      campo({ etiqueta: esPergola ? 'Fondo' : 'Salida o proyección', sufijo: 'm',
+              pista: esPergola ? 'Cuánto sale de la fachada' : 'Cuánta sombra da hacia afuera' },
+        entrada({ valor: b.altoM, tipo: 'number', paso: '0.01', min: '0', numero: true, placeholder: '3.50',
+                  onInput: (e) => set('altoM', e.target.value) })),
+      campo({ etiqueta: 'Equipos iguales', sufijo: 'pza' },
+        entrada({ valor: b.cantidad, tipo: 'number', paso: '1', min: '1', numero: true,
+                  onInput: (e) => set('cantidad', e.target.value) }))),
+
+    nota(esPergola
+      ? 'La pérgola se factura por área de techo. Antes de comprometer instalación hay que confirmar que haya losa o dado de cimentación donde anclar.'
+      : 'El toldo se factura por área de sombra: ancho por salida. El mínimo por equipo es más alto que en persianas porque la estructura y el anclaje pesan más que la lona.',
+      '', 'regla'),
+
+    accion({ iconoNombre: 'capas', titulo: 'Motorización y automatismos', abierto: true,
+             pista: 'Lo que más sube el ticket en exteriores' },
+      el('hr', { class: 'rule mt-0' }),
+      el('div', { class: 'grid-2' },
+        casilla({ marcado: b.motorizada, texto: 'Motorizado',
+                  pista: 'Motor y control remoto por equipo',
+                  onChange: (v) => set('motorizada', v) }),
+        casilla({ marcado: b.sensorViento, texto: 'Sensor de viento y sol',
+                  pista: 'Recoge el equipo solo. Evita que una racha rompa la lona.',
+                  onChange: (v) => set('sensorViento', v) }),
+        casilla({ marcado: b.incluirInstalacion, texto: 'Instalación y anclaje',
+                  pista: 'Por m² de equipo, con cargo mínimo por visita',
+                  onChange: (v) => set('incluirInstalacion', v) }))));
+}
+
 function formularioPersiana(b, p, set) {
   return el('div', { class: 'stack stack-4' },
     el('div', { class: 'grid-3' },
@@ -699,7 +753,10 @@ function panelResumen() {
 
   return el('aside', { class: 'resumen js-resumen' },
     el('div', { class: 'resumen__body' },
-      el('p', { class: 'eyebrow mb-4' }, 'Resumen'),
+      el('div', { class: 'row', style: 'justify-content:space-between;align-items:baseline' },
+        el('p', { class: 'eyebrow' }, 'Resumen'),
+        el('span', { class: 'pill pill--sm pill--outline' }, 'MXN')),
+      el('div', { style: 'height:12px' }),
 
       !hay
         ? el('p', { class: 'small muted' }, 'Agrega la primera partida para ver los totales.')
@@ -771,8 +828,10 @@ function panelResumen() {
     hay
       ? el('div', {},
           el('div', { class: 'resumen__total' },
-            el('span', { class: 'k' }, 'Total'),
+            el('span', { class: 'k' }, 'Total  ·  MXN'),
             el('span', { class: 'v' }, fmtMXN(totales.total))),
+          el('p', { class: 'tiny', style: 'padding:10px 16px 0' },
+            'Pesos mexicanos, IVA incluido.'),
           el('div', { class: 'stack stack-2', style: 'padding:16px' },
             el('button', { class: 'btn btn--accent btn--block js-pdf-lateral', onclick: exportarPDF },
               icono('pdf', 15), 'Descargar PDF'),

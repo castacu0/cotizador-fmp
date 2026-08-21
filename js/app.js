@@ -4,6 +4,7 @@ import { el, $ } from './format.js';
 import * as S from './state.js';
 import { icono, avisar } from './ui.js';
 import { iniciarTour, tourYaVisto } from './tour.js';
+import { alternarAsistente, abrirAsistente } from './asistente.js';
 import { cargarEjemplo, hayDatosParaEjemplo } from './demo.js';
 
 import * as Cotizador from './views/cotizador.js';
@@ -33,6 +34,32 @@ const nav = el('nav', { class: 'nav' },
     onclick: () => { location.hash = r.hash; },
   }, r.etiqueta)));
 
+// --------------------------------------------------------------------------- texto grande
+
+const LLAVE_COMODO = 'fmp.textoGrande';
+const comodoActivo = () => localStorage.getItem(LLAVE_COMODO) === '1';
+
+function aplicarComodo(activo) {
+  document.documentElement.classList.toggle('texto-grande', activo);
+  localStorage.setItem(LLAVE_COMODO, activo ? '1' : '0');
+  const b = $('.js-comodo');
+  if (b) {
+    b.setAttribute('aria-pressed', String(activo));
+    b.title = activo ? 'Volver al tamaño normal' : 'Agrandar el texto de toda la aplicación';
+  }
+}
+
+const btnComodo = el('button', {
+  class: 'btn btn--sm js-comodo', 'aria-pressed': String(comodoActivo()),
+  onclick: () => aplicarComodo(!document.documentElement.classList.contains('texto-grande')),
+}, icono('regla', 15), 'Texto grande');
+
+const btnAsistente = el('button', {
+  class: 'btn btn--sm js-asistente', 'aria-expanded': 'false',
+  title: 'Resuelve dudas sobre cómo usar el cotizador',
+  onclick: () => alternarAsistente(),
+}, icono('ayuda', 15), 'Dudas');
+
 const btnTutorial = el('button', {
   class: 'btn btn--sm js-tutorial', title: 'Recorrido guiado por todas las funciones',
   onclick: () => arrancarTour(),
@@ -51,7 +78,7 @@ const topbar = el('header', { class: 'topbar' },
       el('span', { class: 'brand__name', style: 'display:block' }, empresa.nombre),
       el('span', { class: 'brand__sub', style: 'display:block' }, 'Cotizador'))),
   nav,
-  btnTutorial);
+  el('div', { class: 'topbar__acciones' }, btnComodo, btnAsistente, btnTutorial));
 
 const main = el('main', { class: 'main' });
 app.append(topbar, main);
@@ -65,6 +92,8 @@ function navegar() {
     else b.removeAttribute('aria-current');
   }
 
+  S.registrarVisita(ruta.etiqueta);
+
   main.replaceChildren();
   try {
     ruta.vista.render(main);
@@ -77,6 +106,8 @@ function navegar() {
   }
   window.scrollTo({ top: 0, behavior: 'instant' });
 }
+
+aplicarComodo(comodoActivo());
 
 window.addEventListener('hashchange', navegar);
 // Las vistas piden un redibujo completo con este evento, en vez de recargar la página.
@@ -199,9 +230,16 @@ function arrancarTour() {
       selector: '.js-importar', posicion: 'abajo', espera: 300,
     },
     {
+      titulo: 'Si algo no queda claro, pregunta',
+      texto: 'El botón Dudas abre un asistente con las preguntas más comunes ya respondidas. ' +
+             'Si no tiene la respuesta, te pasa el WhatsApp de soporte en vez de inventar.',
+      antes: () => irA('#/cotizador'),
+      selector: '.js-asistente', posicion: 'abajo',
+    },
+    {
       titulo: 'Listo',
-      texto: 'Puedes repetir este recorrido cuando quieras desde el botón Tutorial, arriba a la derecha. ' +
-             'Si algo no queda claro, la sección Ayuda tiene buscador propio.',
+      texto: 'Puedes repetir este recorrido cuando quieras desde el botón Tutorial. ' +
+             'Y si la letra se ve chica, el botón "Texto grande" agranda toda la aplicación.',
       antes: () => irA('#/cotizador'),
     },
   ];

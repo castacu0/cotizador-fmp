@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pruebas del motor de cálculo · Cotizador FMP</title>
-<link rel="stylesheet" href="css/app.css?v=9">
+<link rel="stylesheet" href="css/app.css?v=12">
 <style>
   .main{max-width:920px}
   .t{width:100%;border-collapse:collapse;font-size:13.5px}
@@ -38,6 +38,7 @@ import { calcularPartida, calcularTotales, estimarPerimetro, leadTimeProducto,
 import { CONFIG_DEFAULT, buscarProductos } from './js/state.js';
 import { CATALOGO_DEMO } from './js/catalog-seed.js';
 import { sugerirMapeo, mapearFilas, normalizarCategoria, plantillaCSV } from './js/importer.js';
+import { CONOCIMIENTO, responder, CONTACTO } from './js/asistente.js';
 
 const cfg = structuredClone(CONFIG_DEFAULT);
 const pruebas = [];
@@ -319,9 +320,13 @@ P('Totales', 'Una partida que apunta a un producto borrado se ignora', () => {
 
 // ---------------------------------------------------------------- buscador
 
-P('Buscador', 'Varias palabras se combinan: "encino premium aceitado" da un resultado', () => {
+P('Buscador', 'Varias palabras acotan y el mejor resultado queda primero', () => {
   const r = buscarProductos(CATALOGO_DEMO, 'encino premium aceitado', {});
-  return { ok: r.length === 1, obtenido: `${r.length} resultado(s)`, esperado: '1 resultado' };
+  const todosEncino = r.every((x) => x.producto.especie === 'Encino');
+  return { ok: r.length >= 1 && r.length <= 3 && todosEncino &&
+               r[0].producto.sku === 'DI-ENC-14-220-AC',
+           obtenido: `${r.length} resultado(s), primero ${r[0]?.producto.sku}`,
+           esperado: 'pocos resultados, primero DI-ENC-14-220-AC' };
 });
 P('Buscador', 'Busca por medida: "encino 9" encuentra el de 9 mm', () => {
   const r = buscarProductos(CATALOGO_DEMO, 'encino 9', {});
@@ -489,6 +494,87 @@ P('Catálogo', 'Cada producto del catálogo se puede cotizar sin error', () => {
   }
   return { ok: fallos.length === 0, obtenido: fallos.length ? fallos.slice(0, 3).join(' | ') : `${CATALOGO_DEMO.length} correctos`,
            esperado: `${CATALOGO_DEMO.length} correctos` };
+});
+
+// ---------------------------------------------------------------- exteriores
+
+const toldo = prod({ categoria: 'toldo', unidad: 'm2', precio: 3850, m2PorCaja: undefined });
+
+P('Exteriores', 'Un toldo se factura por ancho por salida', () => {
+  const c = calcularPartida({ ...base, anchoM: 5, altoM: 3.5, cantidad: 1 }, toldo, cfg);
+  return { ok: cerca(c.areaFacturable, 17.5), obtenido: `${c.areaFacturable.toFixed(2)} m²`, esperado: '17.50 m²' };
+});
+P('Exteriores', 'Un toldo chico paga el área mínima de 4 m²', () => {
+  const c = calcularPartida({ ...base, anchoM: 1.5, altoM: 1.5, cantidad: 1 }, toldo, cfg);
+  return { ok: cerca(c.areaFacturable, 4) && c.aplicaMinimo === true,
+           obtenido: `${c.areaFacturable.toFixed(2)} m² (real ${c.areaReal.toFixed(2)})`, esperado: '4.00 m²' };
+});
+P('Exteriores', 'El sensor de viento y el motor se cobran por equipo', () => {
+  const c = calcularPartida({ ...base, anchoM: 5, altoM: 3.5, cantidad: 3,
+                              motorizada: true, sensorViento: true }, toldo, cfg);
+  const esperado = 3 * cfg.tarifas.motorExteriorPza + 3 * cfg.tarifas.sensorVientoPza;
+  return { ok: cerca(c.totalAccesorios, esperado),
+           obtenido: c.totalAccesorios.toFixed(2), esperado: esperado.toFixed(2) };
+});
+P('Exteriores', 'La instalación de exterior respeta su cargo mínimo', () => {
+  const c = calcularPartida({ ...base, anchoM: 1.2, altoM: 1.2, cantidad: 1, incluirInstalacion: true },
+                            toldo, cfg);
+  return { ok: c.manoObra >= cfg.tarifas.minimoInstalacionExterior,
+           obtenido: c.manoObra.toFixed(2), esperado: `>= ${cfg.tarifas.minimoInstalacionExterior}` };
+});
+
+// ---------------------------------------------------------------- asistente
+
+P('Asistente', 'Reconoce las preguntas más comunes del equipo', () => {
+  const casos = [
+    ['como hago una cotizacion', 'Uso'],
+    ['por que factura mas metros de los que pedi', 'Cálculo'],
+    ['como protejo mi catalogo respaldo', 'Datos'],
+    ['la letra se ve muy chica', 'Uso'],
+    ['cuanta tela lleva una cortina', 'Cálculo'],
+    ['quien cambio el precio', 'Datos'],
+    ['cuando llega el material importado', 'Entrega'],
+    ['hasta cuanto descuento puedo dar', 'Comercial'],
+    ['como cargo mi excel', 'Catálogo'],
+    ['algo no funciona a quien le hablo', 'Soporte'],
+  ];
+  const fallos = casos.filter(([q, tema]) => {
+    const r = responder(q);
+    return !r.length || r[0].tema !== tema;
+  });
+  return { ok: fallos.length === 0,
+           obtenido: fallos.length ? fallos.map((f) => f[0]).join(' | ') : `${casos.length} de ${casos.length}`,
+           esperado: `${casos.length} de ${casos.length}` };
+});
+P('Asistente', 'No inventa: sin coincidencia devuelve vacío', () => {
+  const r = responder('cual es la capital de mongolia');
+  return { ok: r.length === 0, obtenido: r.length ? r[0].p : 'vacío', esperado: 'vacío' };
+});
+P('Asistente', 'Toda respuesta tiene tema, pregunta y contenido', () => {
+  const malas = CONOCIMIENTO.filter((e) => !e.tema || !e.p || !e.r || e.r.length < 40 || !e.claves);
+  return { ok: malas.length === 0,
+           obtenido: malas.length ? malas.map((m) => m.p).join(', ') : `${CONOCIMIENTO.length} completas`,
+           esperado: `${CONOCIMIENTO.length} completas` };
+});
+P('Asistente', 'El contacto de soporte está bien formado', () => {
+  const okMail = /^[^@\s]+@[^@\s]+\.[a-z]{2,}$/.test(CONTACTO.email);
+  const okTel = /^52\d{10,12}$/.test(CONTACTO.whatsappE164);
+  return { ok: okMail && okTel, obtenido: `${CONTACTO.email} · ${CONTACTO.whatsappE164}`,
+           esperado: 'correo y número válidos' };
+});
+
+// ---------------------------------------------------------------- catálogo ampliado
+
+P('Catálogo', 'Toldos y pérgolas se pueden cotizar sin error', () => {
+  const exteriores = CATALOGO_DEMO.filter((p) => ['toldo', 'pergola'].includes(p.categoria));
+  const fallos = [];
+  for (const p of exteriores) {
+    const c = calcularPartida({ ...base, anchoM: 4, altoM: 3, cantidad: 1, margenOverride: 0.35 }, p, cfg);
+    if (!c || !Number.isFinite(c.importe) || c.importe <= 0) fallos.push(p.sku);
+  }
+  return { ok: exteriores.length >= 5 && fallos.length === 0,
+           obtenido: `${exteriores.length} equipos, ${fallos.length} con error`,
+           esperado: '>= 5 equipos, 0 errores' };
 });
 
 // ---------------------------------------------------------------- ejecución

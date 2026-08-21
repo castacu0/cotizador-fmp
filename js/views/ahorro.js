@@ -85,7 +85,7 @@ export function render(raiz) {
     cuerpo.append(el('div', { class: 'card card--quiet' },
       vacio({ iconoNombre: 'barras', titulo: 'Todavía no hay cotizaciones emitidas',
               mensaje: 'El tablero se llena solo conforme el equipo genera PDF. Cada cotización emitida suma a las horas liberadas y al margen recuperado.' })));
-    cuerpo.append(bloqueBitacora(s));
+    cuerpo.append(bloqueActividad(s), bloqueBitacora(s));
     return;
   }
 
@@ -95,6 +95,7 @@ export function render(raiz) {
     composicion(d),
     graficaMensual(d),
     bloqueSupuestos(s, d),
+    bloqueActividad(s),
     bloqueBitacora(s));
 }
 
@@ -265,6 +266,82 @@ function bloqueSupuestos(s, d) {
            'accent', 'barras')));
 }
 
+// --------------------------------------------------------------------------- actividad
+
+/** Quién entró, a qué pantalla y cuántas veces. Agrupado por persona y día. */
+function bloqueActividad(s) {
+  const act = s.actividad ?? [];
+  const log = s.bitacora ?? [];
+
+  // Resumen por persona: consultas, cotizaciones emitidas y último acceso.
+  const porPersona = new Map();
+  for (const a of act) {
+    const p = porPersona.get(a.usuario) ?? { usuario: a.usuario, consultas: 0, cotizaciones: 0, ultima: a.ultima };
+    p.consultas += a.veces;
+    if (a.ultima > p.ultima) p.ultima = a.ultima;
+    porPersona.set(a.usuario, p);
+  }
+  for (const r of log) {
+    if (r.accion !== 'Cotización emitida') continue;
+    const p = porPersona.get(r.usuario) ?? { usuario: r.usuario, consultas: 0, cotizaciones: 0, ultima: r.fecha };
+    p.cotizaciones += 1;
+    if (r.fecha > p.ultima) p.ultima = r.fecha;
+    porPersona.set(r.usuario, p);
+  }
+  const personas = [...porPersona.values()].sort((a, b) => b.ultima.localeCompare(a.ultima));
+
+  const detalle = act.slice(0, 60);
+
+  return accion(
+    { iconoNombre: 'usuario', titulo: 'Registro de actividad',
+      pista: personas.length
+        ? `${personas.length} persona(s) han usado esta computadora`
+        : 'Sin actividad registrada todavía' },
+    el('hr', { class: 'rule mt-0' }),
+    el('p', { class: 'small muted mb-4' },
+      'Quién entró, a qué pantalla y quién emitió cotizaciones. Se agrupa por persona y día ',
+      'para que no se llene con un renglón por clic.'),
+
+    !personas.length
+      ? el('p', { class: 'small muted' },
+          'Se llena solo conforme el equipo use la aplicación. Para que sirva, cada quien debe capturar su nombre en Ajustes.')
+      : el('div', {},
+          el('div', { class: 'tabla-wrap mb-4' },
+            el('table', { class: 'tabla' },
+              el('thead', {}, el('tr', {},
+                el('th', {}, 'Persona'),
+                el('th', { class: 'r' }, 'Consultas'),
+                el('th', { class: 'r' }, 'Cotizaciones'),
+                el('th', { class: 'r' }, 'Último acceso'))),
+              el('tbody', {}, ...personas.map((p) => el('tr', {},
+                el('td', {},
+                  el('span', { class: `pill pill--sm ${p.usuario === 'Sin identificar' ? 'pill--outline' : ''}` },
+                    p.usuario)),
+                el('td', { class: 'r num' }, fmtNum(p.consultas, 0)),
+                el('td', { class: 'r num', style: p.cotizaciones ? 'font-weight:600' : 'color:var(--ink-4)' },
+                  fmtNum(p.cotizaciones, 0)),
+                el('td', { class: 'r small muted nowrap' },
+                  fmtFechaCorta(p.ultima),
+                  el('div', { class: 'tiny' },
+                    new Date(p.ultima).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }))))))))
+        ,
+          el('details', { class: 'disc disc--plain' },
+            el('summary', { class: 'disc__head' },
+              el('span', {}, `Ver el detalle por pantalla (${act.length} registros)`),
+              el('span', { class: 'disc__chev' }, icono('chevron', 16, 1.8))),
+            el('div', { class: 'disc__body' },
+              el('div', { class: 'tabla-wrap' },
+                el('table', { class: 'tabla' },
+                  el('thead', {}, el('tr', {},
+                    el('th', {}, 'Día'), el('th', {}, 'Persona'), el('th', {}, 'Pantalla'),
+                    el('th', { class: 'r' }, 'Veces'))),
+                  el('tbody', {}, ...detalle.map((a) => el('tr', {},
+                    el('td', { class: 'small nowrap' }, fmtFechaCorta(a.dia)),
+                    el('td', { class: 'small' }, a.usuario),
+                    el('td', { class: 'small muted' }, a.pantalla),
+                    el('td', { class: 'r num' }, fmtNum(a.veces, 0)))))))))));
+}
+
 // --------------------------------------------------------------------------- bitácora
 
 function bloqueBitacora(s) {
@@ -328,8 +405,10 @@ function cambio(r) {
 }
 
 function exportarBitacora() {
-  const log = S.obtener().bitacora ?? [];
-  if (!log.length) return avisar('Todavía no hay movimientos que exportar.', 'err');
+  const est = S.obtener();
+  const log = est.bitacora ?? [];
+  const act = est.actividad ?? [];
+  if (!log.length && !act.length) return avisar('Todavía no hay movimientos que exportar.', 'err');
   const cols = ['fecha', 'usuario', 'accion', 'detalle', 'precioAnterior', 'precioNuevo', 'total', 'ruta'];
   const esc = (c) => (/[",;\n]/.test(String(c ?? '')) ? `"${String(c).replace(/"/g, '""')}"` : String(c ?? ''));
   const csv = [cols.join(','), ...log.map((r) => cols.map((c) => esc(r[c])).join(','))].join('\n');

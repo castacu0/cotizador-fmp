@@ -33,6 +33,8 @@ export const CATEGORIAS = {
   'porcelanato':      { nombre: 'Porcelanato',         en: 'Porcelain tile', unidad: 'm2', familia: 'piso' },
   'cortina':          { nombre: 'Cortinas',            en: 'Drapery / curtains', unidad: 'ml', familia: 'cortina' },
   'persiana':         { nombre: 'Persianas',           en: 'Blinds / window shades', unidad: 'm2', familia: 'persiana' },
+  'toldo':            { nombre: 'Toldos',               en: 'Awnings / retractable shades', unidad: 'm2', familia: 'exterior' },
+  'pergola':          { nombre: 'Pérgolas',             en: 'Pergolas / louvered roofs', unidad: 'm2', familia: 'exterior' },
   'accesorio':        { nombre: 'Accesorios',          en: 'Accessories & trims', unidad: 'pza', familia: 'accesorio' },
 };
 
@@ -328,6 +330,72 @@ export function calcularPersiana({ partida, producto, config }) {
 }
 
 // ---------------------------------------------------------------------------
+// Motor: EXTERIORES (toldos y pérgolas)
+// ---------------------------------------------------------------------------
+
+/**
+ * Se fabrican a medida y se facturan por área proyectada, con un mínimo por
+ * equipo. La estructura y el anclaje pesan más que la lona, así que el mínimo
+ * es más alto que en persianas.
+ */
+export function calcularExterior({ partida, producto, config }) {
+  const ancho = num(partida.anchoM);
+  const salida = num(partida.altoM);          // proyección o salida del toldo
+  const cantidad = Math.max(1, num(partida.cantidad, 1));
+
+  const areaReal = ancho * salida;
+  const areaMinima = num(config.tarifas.areaMinimaExterior, 4.0);
+  const areaFacturableUnitaria = Math.max(areaReal, areaMinima);
+  const aplicaMinimo = areaReal < areaMinima;
+  const areaFacturable = areaFacturableUnitaria * cantidad;
+
+  const precioM2 = precioBaseMXN(producto, config);
+  const material = areaFacturable * precioM2;
+
+  const accesorios = [];
+  if (partida.motorizada) {
+    accesorios.push({
+      clave: 'motor',
+      concepto: 'Motorización con control remoto por equipo',
+      cantidad,
+      unidad: 'pza',
+      precioUnitario: num(config.tarifas.motorExteriorPza),
+      importe: cantidad * num(config.tarifas.motorExteriorPza),
+    });
+  }
+  if (partida.sensorViento) {
+    accesorios.push({
+      clave: 'sensor',
+      concepto: 'Sensor de viento y sol (recoge el toldo solo)',
+      cantidad,
+      unidad: 'pza',
+      precioUnitario: num(config.tarifas.sensorVientoPza),
+      importe: cantidad * num(config.tarifas.sensorVientoPza),
+    });
+  }
+  const totalAccesorios = accesorios.reduce((s, a) => s + a.importe, 0);
+
+  // La instalación en exterior lleva anclaje estructural: se cobra por m² del equipo.
+  const manoObra = partida.incluirInstalacion
+    ? Math.max(areaFacturable * num(config.tarifas.instalacionExteriorM2),
+               num(config.tarifas.minimoInstalacionExterior))
+    : 0;
+
+  return {
+    tipo: 'exterior',
+    ancho, salida: salida, alto: salida, cantidad,
+    areaReal, areaMinima, aplicaMinimo,
+    areaFacturableUnitaria, areaFacturable,
+    precioM2,
+    material,
+    accesorios,
+    totalAccesorios,
+    manoObra,
+    costoDirecto: material + totalAccesorios + manoObra,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Motor: ACCESORIO SUELTO
 // ---------------------------------------------------------------------------
 
@@ -359,6 +427,7 @@ export function calcularPartida(partida, producto, config) {
   let base;
   if (familia === 'cortina') base = calcularCortina(args);
   else if (familia === 'persiana') base = calcularPersiana(args);
+  else if (familia === 'exterior') base = calcularExterior(args);
   else if (familia === 'accesorio') base = calcularAccesorio(args);
   else base = calcularPiso(args);
 

@@ -2,6 +2,7 @@
 
 import { el, normalizar } from '../format.js';
 import { icono, desplegable, nota } from '../ui.js';
+import { CONTACTO, abrirAsistente } from '../asistente.js';
 
 const CONTENIDO = [
   {
@@ -19,7 +20,7 @@ const CONTENIDO = [
             'Elige el patrón de colocación. Cambia la merma y la mano de obra, no es un detalle estético.',
             'Marca los accesorios. El zoclo y la barrera de vapor son los que más se olvidan.',
             'Revisa el margen en el panel derecho. Debajo de 25% aparece una alerta.',
-            'Descarga el PDF. Salen dos páginas: propuesta y anexo técnico.',
+            'Descarga el PDF. Salen hasta tres páginas: propuesta, anexo técnico y condiciones.',
           ],
         ],
       },
@@ -33,7 +34,7 @@ const CONTENIDO = [
       },
       {
         p: '¿El cliente ve mi margen?',
-        r: ['texto', 'No. El PDF solo muestra precio unitario, importe, subtotal, IVA y total. El costo, el margen y la utilidad se quedan en la app.'],
+        r: ['texto', 'No. El PDF solo muestra precio unitario, importe, subtotal, IVA y total en pesos mexicanos. El costo, el margen y la utilidad se quedan en la app.'],
       },
     ],
   },
@@ -227,6 +228,79 @@ Producto importado:
     ],
   },
   {
+    titulo: 'Buenas prácticas del equipo',
+    icono: 'check',
+    temas: [
+      {
+        p: 'Todos los días, antes de empezar',
+        r: [
+          'lista',
+          ['Confirma que tu nombre esté capturado en Ajustes. Sin eso la bitácora anota "Sin identificar".',
+           'Revisa el tipo de cambio si vas a cotizar producto importado.',
+           'Da una pasada al tablero de Ahorro: si hay cotizaciones bajo 25%, alguien está regalando margen.'],
+        ],
+      },
+      {
+        p: 'Cada vez que cambien precios',
+        r: [
+          'pasos',
+          ['Actualiza el precio en Catálogo, o usa "Cambiar precios" si subió toda una familia.',
+           'Revisa que el rendimiento por caja siga siendo el mismo: el proveedor a veces lo cambia sin avisar.',
+           'Guarda un respaldo desde Ajustes.',
+           'Avisa al equipo y comparte el archivo de respaldo para que todos queden con la misma lista.'],
+          'Un precio viejo en la computadora de un asesor genera una cotización que la empresa tiene que respetar. Es el error más caro de esta etapa.',
+        ],
+      },
+      {
+        p: 'Quién mantiene qué',
+        r: [
+          'tabla',
+          [['Precios y catálogo', 'Una sola persona', 'Cuando cambie la lista del proveedor'],
+           ['Tipo de cambio', 'Quien cotice importado', 'Cada lunes'],
+           ['Tarifas de instalación', 'Quien coordine obra', 'Cada trimestre'],
+           ['Margen por defecto', 'Dirección', 'Cuando cambie la política'],
+           ['Respaldo', 'Quien mantiene el catálogo', 'Cada cambio y el primer día del mes'],
+           ['Existencias', 'Almacén', 'Semanal, o al menos antes de prometer entrega']],
+          ['Qué', 'Quién', 'Cada cuándo'],
+          'Si un renglón no tiene nombre y apellido asignado, en tres meses nadie lo actualiza y la herramienta empieza a mentir.',
+        ],
+      },
+      {
+        p: 'Antes de mandar cualquier cotización',
+        r: [
+          'lista',
+          ['Que el nombre del cliente y la obra estén bien escritos: van impresos en el PDF.',
+           'Que el patrón de colocación sea el que pidió el cliente, no el que traía por defecto.',
+           'Que el margen esté en verde. Si está en ámbar o rojo, que sea una decisión, no un descuido.',
+           'Que la fecha de entrega considere si hay producto importado.',
+           'Abrir la vista previa y leer la página del anexo. Es la que protege a la empresa.'],
+        ],
+      },
+      {
+        p: 'Qué nunca hay que hacer',
+        r: [
+          'lista',
+          ['Cotizar el área del plano sin merma ni redondeo a caja.',
+           'Prometer una fecha sin revisar el tiempo de importación.',
+           'Cambiar un precio de catálogo para "ajustar" una cotización: eso afecta a todo el equipo. Usa el descuento de la partida.',
+           'Restablecer la aplicación sin haber guardado respaldo.',
+           'Mandar el PDF sin abrirlo antes.'],
+        ],
+      },
+      {
+        p: 'Al entrar alguien nuevo al equipo',
+        r: [
+          'pasos',
+          ['Que capture su nombre en Ajustes.',
+           'Que corra el Tutorial completo, son catorce pasos.',
+           'Que arme tres cotizaciones de práctica con "Cargar ejemplo" y las borre.',
+           'Que lea esta sección de Ayuda entera.',
+           'Que su primera cotización real la revise alguien con experiencia antes de enviarla.'],
+        ],
+      },
+    ],
+  },
+  {
     titulo: 'La aplicación',
     icono: 'ajustes',
     temas: [
@@ -250,6 +324,14 @@ Producto importado:
       {
         p: '¿Funciona sin internet?',
         r: ['texto', 'Sí, una vez cargada la página. El cálculo y el PDF corren en el navegador. Solo la primera carga y las tipografías necesitan conexión.'],
+      },
+      {
+        p: '¿La letra se puede hacer más grande?',
+        r: ['texto', 'Sí. El botón "Texto grande" arriba a la derecha aumenta el tamaño de toda la aplicación y separa más los botones. Queda guardado para la próxima vez.'],
+      },
+      {
+        p: '¿A quién le hablo si algo falla?',
+        r: ['texto', `A ${CONTACTO.nombre}: WhatsApp ${CONTACTO.whatsapp} o correo ${CONTACTO.email}. Antes de reportar, prueba recargar la página: no se pierde nada porque los datos quedan guardados.`],
       },
     ],
   },
@@ -277,9 +359,29 @@ export function render(raiz) {
           class: 'search__input', type: 'search', placeholder: 'Busca una duda: merma, pliegue, aduana, margen…',
           oninput: (e) => { consulta = e.target.value; refrescar(); },
         }))),
-    cuerpo));
+    cuerpo,
+    bloqueSoporte()));
 
   refrescar();
+}
+
+function bloqueSoporte() {
+  return el('section', { class: 'card card--pad-lg mt-6' },
+    el('div', { class: 'row', style: 'justify-content:space-between;align-items:flex-start;gap:24px' },
+      el('div', { style: 'flex:1;min-width:220px' },
+        el('p', { class: 'eyebrow' }, 'Soporte'),
+        el('h2', { class: 'title mt-3' }, '¿No encontraste la respuesta?'),
+        el('p', { class: 'lead mt-3' },
+          'El asistente resuelve las dudas más comunes al instante. Si necesitas algo que no está aquí, ',
+          `escríbele directo a ${CONTACTO.nombre}.`)),
+      el('div', { class: 'stack stack-2' },
+        el('button', { class: 'btn btn--primary', onclick: () => abrirAsistente() },
+          icono('ayuda', 15), 'Abrir el asistente'),
+        el('a', {
+          class: 'btn', target: '_blank', rel: 'noopener',
+          href: `https://wa.me/${CONTACTO.whatsappE164}?text=${encodeURIComponent('Hola, tengo una duda del cotizador: ')}`,
+        }, `WhatsApp ${CONTACTO.whatsapp}`),
+        el('a', { class: 'btn', href: `mailto:${CONTACTO.email}` }, CONTACTO.email))));
 }
 
 function refrescar() {

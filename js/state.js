@@ -6,6 +6,10 @@ import { normalizar, uid } from './format.js';
 
 const LLAVE = 'fmp.cotizador.v1';
 
+// Versión del catálogo de demostración. Al subirla, quien todavía traiga el
+// demo recibe la lista nueva. A quien ya importó su catálogo real no se le toca.
+const SEMILLA_VERSION = 3;
+
 export const CONFIG_DEFAULT = {
   empresa: {
     nombre: 'Fernando Martínez Parente',
@@ -61,6 +65,11 @@ export const CONFIG_DEFAULT = {
     areaMinimaPersiana: 1.0,
     instalacionPersianaPza: 480,
     motorPersianaPza: 6800,
+    areaMinimaExterior: 4.0,
+    instalacionExteriorM2: 640,
+    minimoInstalacionExterior: 4800,
+    motorExteriorPza: 12500,
+    sensorVientoPza: 5400,
   },
 };
 
@@ -92,10 +101,13 @@ const ESTADO_INICIAL = () => ({
   config: structuredClone(CONFIG_DEFAULT),
   catalogo: structuredClone(CATALOGO_DEMO),
   catalogoEsDemo: true,
+  semillaVersion: SEMILLA_VERSION,
   cotizacion: cotizacionVacia(),
   historial: [],
   bitacora: [],
+  actividad: [],
   usuario: '',
+  ultimoRespaldo: null,
   consecutivo: 1,
 });
 
@@ -113,6 +125,19 @@ export function cargar() {
       config: fusionar(CONFIG_DEFAULT, guardado.config),
       cotizacion: guardado.cotizacion ?? cotizacionVacia(),
     };
+
+    // Si sigue con el catálogo de demostración y la semilla cambió, se actualiza.
+    // Un catálogo real importado nunca se sobrescribe.
+    // Ojo: la versión se lee de lo GUARDADO, no del estado ya fusionado, porque
+    // ESTADO_INICIAL siempre trae la versión nueva y la comparación nunca daría.
+    const versionGuardada = guardado.semillaVersion ?? 0;
+    if (estado.catalogoEsDemo && versionGuardada !== SEMILLA_VERSION) {
+      estado.catalogo = structuredClone(CATALOGO_DEMO);
+      estado.semillaVersion = SEMILLA_VERSION;
+      // Las partidas apuntan a ids que ya no existen: se limpia la cotización.
+      estado.cotizacion = cotizacionVacia();
+      guardarAhora();
+    }
   } catch (err) {
     console.warn('No se pudo leer el almacenamiento local, se reinicia:', err);
     estado = ESTADO_INICIAL();
@@ -182,6 +207,33 @@ export function registrar(accion, detalle, extra = {}) {
       accion, detalle, ...extra,
     });
     s.bitacora = s.bitacora.slice(0, 800);
+  });
+}
+
+/**
+ * Registro de actividad: quién entró y a qué pantalla.
+ * Se agrupa por persona y día para no llenar la bitácora con un renglón por clic.
+ */
+export function registrarVisita(pantalla) {
+  const usuario = (estado.usuario || '').trim() || 'Sin identificar';
+  const hoy = new Date().toISOString().slice(0, 10);
+  const clave = `${usuario}|${hoy}|${pantalla}`;
+
+  actualizar((s) => {
+    if (!Array.isArray(s.actividad)) s.actividad = [];
+    const previo = s.actividad.find((a) => a.clave === clave);
+    if (previo) {
+      previo.veces += 1;
+      previo.ultima = new Date().toISOString();
+      return;
+    }
+    s.actividad.unshift({
+      clave, usuario, pantalla, dia: hoy,
+      veces: 1,
+      primera: new Date().toISOString(),
+      ultima: new Date().toISOString(),
+    });
+    s.actividad = s.actividad.slice(0, 600);
   });
 }
 
@@ -399,7 +451,25 @@ const ETIQUETAS_CONFIG = {
 // --------------------------------------------------------------------------- respaldo
 
 export function exportarRespaldo() {
-  return JSON.stringify({ ...estado, _exportado: new Date().toISOString() }, null, 2);
+  const marca = new Date().toISOString();
+  actualizar((s) => { s.ultimoRespaldo = marca; });
+  registrar('Respaldo exportado', `${estado.catalogo.length} materiales`);
+  return JSON.stringify({ ...estado, _exportado: marca }, null, 2);
+}
+
+/** Días desde el último respaldo. null si nunca se ha hecho uno. */
+export function diasSinRespaldo() {
+  const r = estado.ultimoRespaldo;
+  if (!r) return null;
+  return Math.floor((Date.now() - new Date(r).getTime()) / 86400000);
+}
+
+/** Cambios registrados después del último respaldo. */
+export function cambiosSinRespaldar() {
+  const r = estado.ultimoRespaldo;
+  const log = estado.bitacora ?? [];
+  if (!r) return log.length;
+  return log.filter((x) => x.fecha > r && x.accion !== 'Respaldo exportado').length;
 }
 
 export function importarRespaldo(json) {

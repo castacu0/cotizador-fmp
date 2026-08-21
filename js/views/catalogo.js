@@ -26,8 +26,8 @@ export function render(raiz) {
         el('div', { class: 'row row--tight' },
           el('button', { class: 'btn', onclick: abrirCambioMasivo }, icono('barras', 15), 'Cambiar precios'),
           el('button', { class: 'btn', onclick: exportar }, icono('bajar', 15), 'Exportar CSV'),
-          el('button', { class: 'btn btn--primary', onclick: () => abrirEditor(null) },
-            icono('mas', 15), 'Agregar producto')))),
+          el('button', { class: 'btn btn--primary btn--lg', onclick: abrirAltaGuiada },
+            icono('mas', 16), 'Agregar producto')))),
     barraBusqueda(),
     cuerpo));
 
@@ -87,7 +87,7 @@ function refrescar() {
       el('th', {}, 'Familia'),
       el('th', {}, 'Medidas'),
       el('th', { class: 'r' }, 'Caja'),
-      el('th', { class: 'r' }, 'Precio'),
+      el('th', { class: 'r' }, 'Precio MXN'),
       el('th', { class: 'r' }, 'Entrega'),
       el('th', { class: 'r' }, ''))),
     el('tbody', {}, ...hits.slice(0, 200).map(({ producto: p }) => filaProducto(p, s))));
@@ -96,6 +96,34 @@ function refrescar() {
     el('p', { class: 'small muted mb-4' },
       `${hits.length} de ${s.catalogo.length} materiales` + (hits.length > 200 ? ' (se muestran los primeros 200)' : '')),
     el('div', { class: 'tabla-wrap' }, tabla));
+}
+
+/** Dos caminos, explicados. Evita que el asesor se enfrente a un formulario en blanco. */
+function abrirAltaGuiada() {
+  const opcion = (iconoNombre, titulo, detalle, etiqueta, onClick) =>
+    el('button', {
+      class: 'opcion-alta', type: 'button', onclick: () => { cerrarModal(); onClick(); },
+    },
+      el('span', { class: 'action__icon' }, icono(iconoNombre, 20)),
+      el('span', { style: 'flex:1;min-width:0;text-align:left' },
+        el('span', { style: 'display:block;font-size:15.5px;font-weight:600' }, titulo),
+        el('span', { class: 'small muted', style: 'display:block;margin-top:3px' }, detalle)),
+      el('span', { class: 'pill pill--sm pill--accent' }, etiqueta));
+
+  abrirModal(
+    { titulo: '¿Cómo quieres darlo de alta?',
+      subtitulo: 'Las dos formas llegan al mismo lugar. La primera es mucho más rápida.' },
+    el('div', { class: 'stack stack-3' },
+      opcion('copiar', 'Copiar uno parecido',
+        'Buscas un material que ya exista, lo copias y cambias solo lo distinto. Ideal para otro espesor, otro color u otro acabado.',
+        'Recomendado', abrirCopiarDe),
+      opcion('mas', 'Empezar desde cero',
+        'Formulario en blanco. Solo son obligatorios el nombre, la familia y el precio de costo.',
+        'Material nuevo', () => abrirEditor(null)),
+      opcion('subir', 'Cargar muchos desde Excel',
+        'Si vas a dar de alta más de diez materiales, conviene subir el archivo desde Ajustes.',
+        'Varios a la vez', () => { location.hash = '#/ajustes'; })),
+    [el('button', { class: 'btn', onclick: cerrarModal }, 'Cancelar')]);
 }
 
 function chip(texto, activo, onClick) {
@@ -144,9 +172,61 @@ function filaProducto(p, s) {
 
 // --------------------------------------------------------------------------- editor
 
-export function abrirEditor(producto) {
+/**
+ * Alta rápida: la mayoría de los materiales nuevos son variantes de uno que ya
+ * existe. Copiar y cambiar dos campos es mucho más rápido que llenar el formulario.
+ */
+export function abrirCopiarDe() {
   const s = S.obtener();
-  const esNuevo = !producto;
+  let consultaLocal = '';
+  const lista = el('div', { class: 'res mt-4' });
+
+  const pintar = () => {
+    const hits = S.buscarProductos(s.catalogo, consultaLocal, {});
+    lista.replaceChildren(...hits.slice(0, 12).map(({ producto: p }) =>
+      el('button', {
+        class: 'res__item', type: 'button',
+        onclick: () => {
+          cerrarModal();
+          const copia = { ...p, id: uid('prod'), sku: '', nombre: `${p.nombre} (copia)`, stock: 0 };
+          abrirEditor(copia, { esCopia: true });
+        },
+      },
+        el('span', { class: 'res__main' },
+          el('span', { class: 'res__name', style: 'display:block' }, p.nombre),
+          el('span', { class: 'res__meta', style: 'display:block' },
+            [CATEGORIAS[p.categoria]?.nombre, p.especie, p.espesorMm ? `${p.espesorMm} mm` : null, p.acabado]
+              .filter(Boolean).join('  ·  '))),
+        el('span', { class: 'res__price' },
+          el('span', { class: 'res__amount', style: 'display:block' }, fmtMXN(p.precio)),
+          el('span', { class: 'res__unit', style: 'display:block' }, 'copiar este')))));
+    if (!hits.length) {
+      lista.replaceChildren(el('div', { class: 'res__empty small' }, 'Ningún material coincide.'));
+    }
+  };
+
+  abrirModal(
+    { titulo: 'Partir de un material parecido', ancho: true,
+      subtitulo: 'Copia uno que ya exista y cambia solo lo que sea distinto. Es la forma más rápida de dar de alta una variante.' },
+    el('div', {},
+      el('div', { class: 'search' },
+        el('span', { class: 'search__icon' }, icono('buscar', 18)),
+        el('input', {
+          class: 'search__input', type: 'search', autocomplete: 'off',
+          placeholder: 'Busca el material del que quieres partir',
+          oninput: (e) => { consultaLocal = e.target.value; pintar(); },
+        })),
+      lista),
+    [el('button', { class: 'btn', onclick: cerrarModal }, 'Cancelar'),
+     el('button', { class: 'btn btn--primary', onclick: () => { cerrarModal(); abrirEditor(null); } },
+       'Mejor empezar desde cero')]);
+
+  pintar();
+}
+
+export function abrirEditor(producto, { esCopia = false } = {}) {
+  const s = S.obtener();
+  const esNuevo = !producto || esCopia;
   const b = producto
     ? { ...producto }
     : {
@@ -163,6 +243,7 @@ export function abrirEditor(producto) {
     b[k] = v;
     if (k === 'categoria') repintarEspecificos();
     if (k === 'importado') repintarImportacion();
+    if (typeof pintarVista === 'function') pintarVista();
   };
 
   const especificos = el('div', { class: 'grid-3' });
@@ -230,6 +311,7 @@ export function abrirEditor(producto) {
 
   repintarEspecificos();
   repintarImportacion();
+  pintarVista();
 
   const guardar = el('button', { class: 'btn btn--primary' }, esNuevo ? 'Agregar al catálogo' : 'Guardar cambios');
   guardar.onclick = () => {
@@ -254,13 +336,44 @@ export function abrirEditor(producto) {
     avisar(esNuevo ? 'Material agregado' : 'Material actualizado');
   };
 
+  // Cómo se verá en el buscador. Da certeza de que quedó bien capturado.
+  const vistaPrevia = el('div', { class: 'card card--flat' });
+  const pintarVista = () => {
+    const cat = CATEGORIAS[b.categoria];
+    const meta = [cat?.nombre, b.especie, b.espesorMm ? `${b.espesorMm} mm` : null,
+                  b.anchoMm ? `${b.anchoMm} mm ancho` : null, b.acabado, b.color]
+      .filter(Boolean).join('  ·  ');
+    vistaPrevia.replaceChildren(
+      el('p', { class: 'eyebrow mb-3' }, 'Así lo verá el asesor al buscarlo'),
+      el('div', { class: 'row', style: 'gap:16px;align-items:flex-start' },
+        el('div', { style: 'flex:1;min-width:0' },
+          el('p', { style: 'font-weight:500' }, b.nombre || 'Sin nombre todavía',
+            b.nombreEn ? el('span', { class: 'muted', style: 'font-weight:400' }, `  (${b.nombreEn})`) : null),
+          el('p', { class: 'small muted mt-3' }, meta || 'Captura medidas y acabado para que aparezca aquí')),
+        el('div', { class: 'text-r' },
+          el('p', { style: 'font-weight:600;font-size:16px' },
+            Number(b.precio) > 0 ? fmtMXN(b.precio) : '—'),
+          el('p', { class: 'tiny' },
+            `${b.moneda} por ${b.unidad === 'ml' ? 'metro lineal' : b.unidad === 'pza' ? 'pieza' : 'm²'}`))),
+      !Number(b.precio) || !String(b.nombre).trim()
+        ? el('div', { class: 'mt-4' }, nota('Falta lo obligatorio: nombre y precio de costo.', 'warn', 'alerta'))
+        : el('div', { class: 'mt-4' }, nota('Listo para guardarse.', 'ok', 'check')));
+  };
+
+  const setOriginal = set;
+  const setConVista = (k) => (e) => { setOriginal(k)(e); pintarVista(); };
+
   abrirModal(
-    { titulo: esNuevo ? 'Nuevo material' : 'Editar material', ancho: true,
-      subtitulo: 'Lo mínimo es nombre, familia y precio. Todo lo demás afina el cálculo y el PDF.' },
+    { titulo: esNuevo ? (esCopia ? 'Copia de un material' : 'Nuevo material') : 'Editar material', ancho: true,
+      subtitulo: esCopia
+        ? 'Se copiaron todos los datos. Cambia lo que sea distinto y ajusta el nombre y el SKU.'
+        : 'Lo mínimo es nombre, familia y precio de costo. Todo lo demás afina el cálculo y el PDF.' },
     el('div', { class: 'stack stack-5' },
+      vistaPrevia,
       el('div', { class: 'grid-2' },
         campo({ etiqueta: 'Nombre comercial', pista: 'Es lo que ve el cliente en la cotización' },
-          entrada({ valor: b.nombre, placeholder: 'Duela de ingeniería Encino Premium Aceitado', onChange: set('nombre') })),
+          entrada({ valor: b.nombre, placeholder: 'Duela de ingeniería Encino Premium Aceitado',
+                    onInput: set('nombre'), onChange: set('nombre') })),
         campo({ etiqueta: 'SKU o clave', pista: 'Si lo dejas vacío se genera solo' },
           entrada({ valor: b.sku, placeholder: 'DI-ENC-14-220', onChange: set('sku') }))),
 
@@ -274,9 +387,10 @@ export function abrirEditor(producto) {
             valor: b.categoria, onChange: set('categoria'),
             opciones: Object.entries(CATEGORIAS).map(([k, c]) => ({ valor: k, etiqueta: c.nombre })),
           })),
-        campo({ etiqueta: 'Precio de costo', sufijo: 'por unidad',
+        campo({ etiqueta: 'Precio de costo', sufijo: 'MXN por unidad',
                 pista: 'Costo, no precio de venta. El margen se aplica en la cotización.' },
-          entrada({ valor: b.precio, tipo: 'number', paso: '0.01', min: '0', numero: true, onChange: set('precio') })),
+          entrada({ valor: b.precio, tipo: 'number', paso: '0.01', min: '0', numero: true,
+                    onInput: set('precio'), onChange: set('precio') })),
         campo({ etiqueta: 'Unidad y moneda' },
           el('div', { class: 'row row--tight' },
             selector({

@@ -715,3 +715,154 @@ a { color: var(--accent); text-underline-offset: 3px; }
   .view > header .row > .row { justify-content: flex-start; }
   .view > header .row > .row .btn { flex: 1; }
 }
+
+/* ======================================================== texto grande
+   Modo de lectura cómoda. Escala toda la interfaz desde la raíz para que
+   nadie tenga que pelearse con el zoom del navegador. */
+
+html.texto-grande { font-size: 118%; }
+html.texto-grande body { font-size: 17px; line-height: 1.68; }
+html.texto-grande .small  { font-size: 15px; }
+html.texto-grande .tiny   { font-size: 13.5px; }
+html.texto-grande .lead   { font-size: 18.5px; }
+html.texto-grande .btn    { padding: 14px 24px; font-size: 16px; }
+html.texto-grande .btn--sm{ padding: 10px 18px; font-size: 15px; }
+html.texto-grande .input,
+html.texto-grande .select,
+html.texto-grande .textarea { padding: 14px 16px; font-size: 16.5px; }
+html.texto-grande .search__input { padding: 20px 54px; font-size: 18px; }
+html.texto-grande .pill   { font-size: 14px; padding: 6px 14px; }
+html.texto-grande .pill--sm { font-size: 13px; padding: 4px 11px; }
+html.texto-grande .tabla  { font-size: 15.5px; }
+html.texto-grande .tabla td { padding: 16px var(--s3); }
+html.texto-grande .nav__item { padding: 12px 20px; font-size: 16px; }
+html.texto-grande .field__label { font-size: 14.5px; }
+html.texto-grande .action__title { font-size: 17px; }
+html.texto-grande .action__hint  { font-size: 14px; }
+html.texto-grande .desglose { font-size: 15px; }
+html.texto-grande .chat { width: min(440px, calc(100vw - 24px)); }
+
+.topbar__acciones { display: flex; gap: var(--s2); align-items: center; }
+.js-comodo[aria-pressed='true'] {
+  background: var(--ink); border-color: var(--ink); color: #fff;
+}
+
+/* ======================================================== asistente */
+
+.chat {
+  position: fixed;
+  right: var(--s5); bottom: var(--s5);
+  z-index: 150;
+  width: min(400px, calc(100vw - 24px));
+  max-height: min(620px, calc(100dvh - 48px));
+  display: flex; flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r3);
+  box-shadow: var(--shadow-3);
+  animation: chat-in .26s var(--ease) both;
+}
+@keyframes chat-in { from { opacity: 0; transform: translateY(14px) scale(.98); } }
+
+@media (max-width: 620px) {
+  .chat { right: 8px; left: 8px; bottom: 8px; width: auto; max-height: calc(100dvh - 16px); }
+}
+
+.chat__cabeza {
+  display: flex; align-items: center; gap: var(--s3);
+  padding: var(--s4) var(--s4) var(--s4) var(--s5);
+  border-bottom: 1px solid var(--line);
+}
+.chat__punto {
+  width: 9px; height: 9px; border-radius: 50%; background: var(--ok); flex: none;
+  box-shadow: 0 0 0 3px var(--ok-soft);
+}
+
+.chat__hilo {
+  flex: 1; overflow-y: auto;
+  padding: var(--s4) var(--s5);
+  display: flex; flex-direction: column; gap: var(--s4);
+  scroll-behavior: smooth;
+}
+
+.chat__msg { max-width: 92%; font-size: 14px; line-height: 1.58; }
+.chat__msg--bot {
+  align-self: flex-start;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r2);
+  padding: var(--s4);
+  color: var(--ink-2);
+}
+.chat__msg--yo {
+  align-self: flex-end;
+  background: var(--ink); color: #fff;
+  border-radius: var(--r2);
+  padding: 10px var(--s4);
+}
+.chat__tema {
+  font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--accent); font-weight: 600; margin-bottom: 6px;
+}
+
+.chat__sugerencias { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.chat__chip {
+  appearance: none; cursor: pointer; text-align: left;
+  border: 1px solid var(--line-2); background: var(--surface);
+  border-radius: var(--r1); padding: 9px 12px;
+  font-size: 13px; color: var(--ink); line-height: 1.45;
+  transition: border-color .16s var(--ease), background .16s var(--ease);
+}
+.chat__chip:hover { border-color: var(--accent); background: var(--accent-soft); }
+
+.chat__contacto { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+
+.chat__pie {
+  display: flex; gap: var(--s2); align-items: center;
+  padding: var(--s3) var(--s4);
+  border-top: 1px solid var(--line);
+  background: var(--surface-2);
+  border-radius: 0 0 var(--r3) var(--r3);
+}
+.chat__pie .input { flex: 1; }
+
+/* ======================================================== aviso de respaldo */
+
+.respaldo-aviso {
+  display: flex; align-items: center; gap: var(--s3); flex-wrap: wrap;
+  padding: var(--s4);
+  border: 1px solid #E2D8C2; background: var(--warn-soft);
+  border-radius: var(--r2); color: var(--warn);
+  font-size: 13.5px;
+}
+.respaldo-aviso .btn { margin-left: auto; }
+
+/* Alta de producto: los dos caminos, como tarjetas grandes */
+.opcion-alta {
+  appearance: none; cursor: pointer; width: 100%; text-align: left;
+  display: flex; align-items: center; gap: var(--s4);
+  padding: var(--s5);
+  border: 1px solid var(--line); border-radius: var(--r3);
+  background: var(--surface);
+  transition: border-color .16s var(--ease), box-shadow .16s var(--ease), transform .16s var(--ease);
+}
+.opcion-alta:hover { border-color: var(--accent-line); box-shadow: var(--shadow-2); }
+.opcion-alta:active { transform: translateY(1px); }
+
+/* La barra superior envuelve en vez de recortar botones. Con seis pestañas y
+   el modo de texto grande no cabe en una sola fila en pantallas medianas. */
+.topbar {
+  height: auto;
+  min-height: var(--topbar-h);
+  flex-wrap: wrap;
+  padding-top: 10px;
+  padding-bottom: 10px;
+  row-gap: 10px;
+}
+.nav { overflow-x: auto; max-width: 100%; }
+.topbar__acciones { flex-wrap: wrap; }
+
+@media (max-width: 1080px) {
+  .nav { margin-left: 0; order: 3; width: 100%; }
+  .topbar__acciones { margin-left: auto; }
+}
