@@ -7,20 +7,36 @@ import { iniciarTour, tourYaVisto } from './tour.js';
 import { alternarAsistente, abrirAsistente } from './asistente.js';
 import { cargarEjemplo, hayDatosParaEjemplo } from './demo.js';
 
+import * as Inicio from './views/inicio.js';
+import * as Medidor from './views/medidor.js';
 import * as Cotizador from './views/cotizador.js';
 import * as Catalogo from './views/catalogo.js';
 import * as Ahorro from './views/ahorro.js';
 import * as Servicios from './views/servicios.js';
 import * as Ayuda from './views/ayuda.js';
 import * as Ajustes from './views/ajustes.js';
+import * as Ventas from './views/ventas.js';
+import * as Registro from './views/registro.js';
+
+// La dirección pidió dos caminos, no una barra con nueve pestañas.
+// El grupo decide qué se ve arriba: quien vino a cotizar no ve el reporte,
+// y quien vino al reporte no ve el catálogo. Ajustes está siempre.
+const GRUPOS = {
+  cotizar: 'Cotización',
+  ventas: 'Ventas',
+};
 
 const RUTAS = [
-  { hash: '#/cotizador', etiqueta: 'Cotizar',   vista: Cotizador },
-  { hash: '#/catalogo',  etiqueta: 'Catálogo',  vista: Catalogo },
-  { hash: '#/ahorro',    etiqueta: 'Ahorro',    vista: Ahorro },
-  { hash: '#/servicios', etiqueta: 'Servicios', vista: Servicios },
-  { hash: '#/ayuda',     etiqueta: 'Ayuda',     vista: Ayuda },
-  { hash: '#/ajustes',   etiqueta: 'Ajustes',   vista: Ajustes },
+  { hash: '#/inicio',    etiqueta: 'Inicio',    vista: Inicio,    grupo: null },
+  { hash: '#/medidor',   etiqueta: 'Medir',     vista: Medidor,   grupo: 'cotizar' },
+  { hash: '#/cotizador', etiqueta: 'Cotizar',   vista: Cotizador, grupo: 'cotizar' },
+  { hash: '#/catalogo',  etiqueta: 'Catálogo',  vista: Catalogo,  grupo: 'cotizar' },
+  { hash: '#/ayuda',     etiqueta: 'Ayuda',     vista: Ayuda,     grupo: 'cotizar' },
+  { hash: '#/servicios', etiqueta: 'Servicios', vista: Servicios, grupo: 'cotizar' },
+  { hash: '#/ventas',    etiqueta: 'Reporte',   vista: Ventas,    grupo: 'ventas' },
+  { hash: '#/registrar', etiqueta: 'Registrar', vista: Registro,  grupo: 'ventas' },
+  { hash: '#/ahorro',    etiqueta: 'Tablero',   vista: Ahorro,    grupo: 'ventas' },
+  { hash: '#/ajustes',   etiqueta: 'Ajustes',   vista: Ajustes,   grupo: '*' },
 ];
 
 S.cargar();
@@ -28,11 +44,28 @@ S.cargar();
 const app = $('#app');
 const empresa = S.obtener().config.empresa;
 
-const nav = el('nav', { class: 'nav' },
-  ...RUTAS.map((r) => el('button', {
-    class: 'nav__item', dataset: { hash: r.hash },
-    onclick: () => { location.hash = r.hash; },
-  }, r.etiqueta)));
+const nav = el('nav', { class: 'nav' });
+
+/** La barra se rearma en cada navegación: solo trae el grupo en curso. */
+function pintarNav(ruta) {
+  const visibles = ruta.grupo
+    ? RUTAS.filter((r) => r.grupo === ruta.grupo || r.grupo === '*')
+    : RUTAS.filter((r) => r.grupo === '*');
+
+  // replaceChildren convierte null en el texto "null": hay que filtrarlo antes.
+  const etiquetaGrupo = ruta.grupo && ruta.grupo !== '*'
+    ? [el('span', { class: 'nav__grupo' }, GRUPOS[ruta.grupo] ?? '')]
+    : [];
+
+  nav.replaceChildren(
+    ...etiquetaGrupo,
+    ...visibles.map((r) => el('button', {
+      class: 'nav__item',
+      dataset: { hash: r.hash },
+      'aria-current': r.hash === ruta.hash ? 'page' : null,
+      onclick: () => { location.hash = r.hash; },
+    }, r.etiqueta)));
+}
 
 // --------------------------------------------------------------------------- tamaño de texto
 
@@ -98,7 +131,7 @@ const iniciales = (empresa.nombre || 'Mundo de Interiores')
   .split(/\s+/).map((w) => w[0]).join('').slice(0, 3).toUpperCase();
 
 const topbar = el('header', { class: 'topbar' },
-  el('a', { class: 'brand', href: '#/cotizador' },
+  el('a', { class: 'brand', href: '#/inicio', title: 'Volver a la portada' },
     el('span', { class: 'brand__mark' },
       empresa.logoDataUrl
         ? el('img', { src: empresa.logoDataUrl, style: 'width:100%;height:100%;object-fit:contain' })
@@ -113,14 +146,11 @@ const main = el('main', { class: 'main' });
 app.append(topbar, main);
 
 function navegar() {
-  const hash = location.hash || '#/cotizador';
+  // El hash puede traer parámetros: #/registrar?id=vta_123
+  const hash = (location.hash || '#/inicio').split('?')[0];
   const ruta = RUTAS.find((r) => r.hash === hash) ?? RUTAS[0];
 
-  for (const b of nav.children) {
-    if (b.dataset.hash === ruta.hash) b.setAttribute('aria-current', 'page');
-    else b.removeAttribute('aria-current');
-  }
-
+  pintarNav(ruta);
   S.registrarVisita(ruta.etiqueta);
 
   main.replaceChildren();
@@ -161,10 +191,25 @@ const abrirAccion = (texto) => {
 function arrancarTour() {
   const pasos = [
     {
-      titulo: 'Bienvenido al cotizador',
+      titulo: 'Bienvenido',
       texto: 'Un recorrido de dos minutos por todo lo que hace la aplicación. ' +
              'Avanza con Siguiente o con las flechas del teclado. Puedes salir cuando quieras con Esc.',
-      antes: () => irA('#/cotizador'),
+      antes: () => irA('#/inicio'),
+    },
+    {
+      titulo: 'Dos caminos, no doce pestañas',
+      texto: 'La portada decide de entrada: o vienes a cotizar, o vienes a ver el mes. ' +
+             'Cada tarjeta abre su propio menú, y el logotipo de arriba regresa aquí.',
+      antes: () => irA('#/inicio'),
+      selector: '.portada', posicion: 'abajo', espera: 260,
+    },
+    {
+      titulo: 'Medir en obra, con puros números',
+      texto: 'Sebastián captura cuarto por cuarto sin escribir una sola letra: 16.45,3.81,2.29 son tres áreas ' +
+             'que se suman, 1.86(2) es esa medida dos veces, y el renglón del zoclo va aparte. ' +
+             'El teclado de abajo es de la aplicación, no del teléfono.',
+      antes: () => irA('#/medidor'),
+      selector: '.view header', posicion: 'abajo', espera: 300,
     },
     {
       titulo: 'Todo empieza por el buscador',
@@ -224,6 +269,14 @@ function arrancarTour() {
       selector: '.js-pdf-lateral', posicion: 'izquierda',
     },
     {
+      titulo: 'El reporte mensual de ventas',
+      texto: 'Qué vendió cada asesor, de qué línea y color, en qué proporción, y cuánto está cobrado. ' +
+             'Una cotización enviada no entra: entra la venta con su anticipo. ' +
+             'El desglose de todo el equipo lo abren Fernando, Melissa y Sebastián.',
+      antes: () => irA('#/ventas'),
+      selector: '.view header', posicion: 'abajo', espera: 300,
+    },
+    {
       titulo: 'El catálogo completo',
       texto: 'Aquí vive todo lo que la empresa vende. Se busca igual que en el cotizador, y desde ' +
              '"Agregar producto" se da de alta un material nuevo en menos de un minuto.',
@@ -269,7 +322,7 @@ function arrancarTour() {
       titulo: 'Listo',
       texto: 'Puedes repetir este recorrido cuando quieras desde el botón Tutorial. ' +
              'Y si la letra se ve chica, los botones A menos y A más de arriba cambian el tamaño de toda la aplicación.',
-      antes: () => irA('#/cotizador'),
+      antes: () => irA('#/inicio'),
     },
   ];
 

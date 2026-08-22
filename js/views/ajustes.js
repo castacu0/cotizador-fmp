@@ -22,11 +22,106 @@ export function render(raiz) {
     el('div', { class: 'stack stack-3' },
       bloqueRespaldo(s),
       bloqueUsuario(s),
+      bloqueEquipo(s),
+      bloqueMedidor(s),
       bloqueEmpresa(s),
       bloqueComercial(s),
       bloqueTarifas(s),
       bloqueCatalogo(s),
       bloqueHistorial(s))));
+}
+
+// --------------------------------------------------------------------------- equipo y permisos
+
+/**
+ * Quién ve el reporte completo. Es una separación por confianza, no un candado:
+ * sin servidor no hay contraseñas que valgan. La pantalla lo dice así.
+ */
+function bloqueEquipo(s) {
+  const equipo = s.config.equipo ?? [];
+  const admins = equipo.filter((p) => p.rol === 'admin').length;
+
+  const lista = el('div', { class: 'stack stack-2' });
+
+  const pintar = () => {
+    lista.replaceChildren(...(s.config.equipo ?? []).map((p, i) =>
+      el('div', { class: 'row' },
+        entrada({ valor: p.nombre, placeholder: 'Nombre y apellido',
+          onChange: (e) => {
+            const nuevo = [...s.config.equipo];
+            nuevo[i] = { ...nuevo[i], nombre: e.target.value.trim() };
+            S.guardarEquipo(nuevo);
+          } }),
+        selector({ valor: p.rol,
+          opciones: [
+            { valor: 'admin', etiqueta: 'Dirección: ve todo' },
+            { valor: 'vendedor', etiqueta: 'Asesor: ve lo suyo' },
+          ],
+          onChange: (e) => {
+            const nuevo = [...s.config.equipo];
+            nuevo[i] = { ...nuevo[i], rol: e.target.value };
+            S.guardarEquipo(nuevo);
+            window.dispatchEvent(new CustomEvent('fmp:rerender'));
+          } }),
+        el('button', {
+          class: 'btn btn--danger btn--icon', 'aria-label': `Quitar a ${p.nombre}`,
+          onclick: () => {
+            S.guardarEquipo(s.config.equipo.filter((_, j) => j !== i));
+            window.dispatchEvent(new CustomEvent('fmp:rerender'));
+          },
+        }, icono('basura', 15)))));
+  };
+  pintar();
+
+  return accion(
+    { iconoNombre: 'usuario', titulo: 'Equipo y quién ve el reporte de ventas',
+      pista: `${equipo.length} personas · ${admins} con acceso a todo el reporte` },
+    lista,
+    el('button', { class: 'btn btn--sm mt-4', onclick: () => {
+      S.guardarEquipo([...(s.config.equipo ?? []), { nombre: '', rol: 'vendedor' }]);
+      window.dispatchEvent(new CustomEvent('fmp:rerender'));
+    } }, icono('mas', 14), 'Agregar persona'),
+    el('div', { class: 'mt-5' },
+      nota('El asesor ve solo sus ventas; la dirección ve las de todos. Como no hay servidor ni ' +
+           'contraseñas, esto separa la información pero no la protege: quien abra el navegador de otra ' +
+           'persona ve lo de esa persona. El control real llega con las cuentas de la fase 2.',
+           'warn', 'alerta')));
+}
+
+// --------------------------------------------------------------------------- medidor de obra
+
+function bloqueMedidor(s) {
+  const m = s.config.medidor;
+  return accion(
+    { iconoNombre: 'regla', titulo: 'Medidor de obra',
+      pista: `Estimado de campo a ${fmtMXN(m.precioM2, 0)} por m²` },
+    el('div', { class: 'grid-3' },
+      campo({ etiqueta: 'Precio promedio por m²', sufijo: 'MXN',
+              pista: 'Provisional hasta cargar las listas de los proveedores' },
+        entrada({ valor: m.precioM2, tipo: 'number', paso: '10', min: 0, numero: true,
+          onChange: guardarEn('medidor.precioM2') })),
+      campo({ etiqueta: 'Zoclo por metro lineal', sufijo: 'MXN' },
+        entrada({ valor: m.precioZocloML, tipo: 'number', paso: '5', min: 0, numero: true,
+          onChange: guardarEn('medidor.precioZocloML') })),
+      campo({ etiqueta: 'Merma del estimado', sufijo: '%' },
+        entrada({ valor: Math.round(m.mermaPct * 100), tipo: 'number', paso: '1', min: 0, max: 40, numero: true,
+          onChange: guardarPct('medidor.mermaPct') })),
+      campo({ etiqueta: 'Instalación por m²', sufijo: 'MXN', pista: 'Cero si ya va dentro del precio por m²' },
+        entrada({ valor: m.instalacionM2, tipo: 'number', paso: '10', min: 0, numero: true,
+          onChange: guardarEn('medidor.instalacionM2') })),
+      campo({ etiqueta: 'm² por caja, promedio', pista: 'Para la referencia de cajas a comprar' },
+        entrada({ valor: m.m2PorCajaPromedio, tipo: 'number', paso: '0.01', min: 0, numero: true,
+          onChange: guardarEn('medidor.m2PorCajaPromedio') }))),
+
+    el('div', { class: 'mt-4' },
+      casilla({ marcado: m.tecladoApp !== false,
+        texto: 'Usar el teclado numérico de la aplicación',
+        pista: 'Solo números, coma, punto, multiplicar y repetir. Apágalo para usar el teclado del sistema.',
+        onChange: (v) => { S.actualizarConfig('medidor.tecladoApp', v); } })),
+
+    el('div', { class: 'mt-5' },
+      nota('El estimado de campo usa el precio promedio, no la lista real. Sirve para dar un número ' +
+           'en la visita; la cotización formal sale del cotizador con el material ya elegido.', '', 'info')));
 }
 
 /** Recordatorio visible cuando hay cambios sin respaldar. */

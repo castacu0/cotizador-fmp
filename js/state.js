@@ -31,6 +31,23 @@ export const CONFIG_DEFAULT = {
     garantiaAnios: 10,
   },
   logistica: { diasTransito: 35, diasAduana: 7, diasInstalacionM2: 25 },
+  // Quién es quién. El rol decide qué ve cada persona en el reporte de ventas.
+  // Es control por confianza, no seguridad: ver ventas.js > permisos.
+  equipo: [
+    { nombre: 'Fernando', rol: 'admin' },
+    { nombre: 'Melissa', rol: 'admin' },
+    { nombre: 'Sebastián', rol: 'admin' },
+  ],
+  // Supuestos del medidor de obra. Se reemplazan en cuanto entren las listas
+  // de precios reales de los 32 proveedores.
+  medidor: {
+    precioM2: 300,
+    precioZocloML: 145,
+    mermaPct: 0.10,
+    instalacionM2: 0,
+    m2PorCajaPromedio: 2.2,
+    tecladoApp: true,
+  },
   // Supuestos del tablero de ahorro. Se ajustan con los números reales de la empresa.
   ahorro: {
     horasPorCotizacionAntes: 3.5,
@@ -109,6 +126,11 @@ const ESTADO_INICIAL = () => ({
   usuario: '',
   ultimoRespaldo: null,
   consecutivo: 1,
+  // Medidor de obra: cada obra levantada en sitio, con sus cuartos.
+  mediciones: [],
+  medicionAbierta: null,
+  // Ventas registradas. Alimentan el reporte mensual de la dirección.
+  ventas: [],
 });
 
 let estado = ESTADO_INICIAL();
@@ -417,6 +439,93 @@ export function archivarCotizacion(totales) {
   registrar('Cotización emitida',
     `${estado.cotizacion.folio} · ${estado.cotizacion.cliente.nombre || 'sin cliente'}`,
     { folio: estado.cotizacion.folio, total: totales.total, margen: totales.margenGlobal });
+}
+
+// --------------------------------------------------------------------------- medidor
+
+export function crearMedicion(medicion) {
+  actualizar((s) => {
+    if (!Array.isArray(s.mediciones)) s.mediciones = [];
+    s.mediciones.unshift(medicion);
+    s.medicionAbierta = medicion.id;
+    s.mediciones = s.mediciones.slice(0, 200);
+  });
+  registrar('Levantamiento nuevo', medicion.nombre || 'Sin nombre', { medicionId: medicion.id });
+  return medicion;
+}
+
+export const medicionAbierta = () =>
+  (estado.mediciones ?? []).find((m) => m.id === estado.medicionAbierta) ?? null;
+
+export function abrirMedicion(id) {
+  actualizar((s) => { s.medicionAbierta = id; });
+}
+
+export function actualizarMedicion(id, cambios) {
+  actualizar((s) => {
+    const i = (s.mediciones ?? []).findIndex((m) => m.id === id);
+    if (i >= 0) s.mediciones[i] = { ...s.mediciones[i], ...cambios };
+  });
+}
+
+export function eliminarMedicion(id) {
+  const previa = (estado.mediciones ?? []).find((m) => m.id === id);
+  actualizar((s) => {
+    s.mediciones = (s.mediciones ?? []).filter((m) => m.id !== id);
+    if (s.medicionAbierta === id) s.medicionAbierta = s.mediciones[0]?.id ?? null;
+  });
+  if (previa) registrar('Levantamiento eliminado', previa.nombre || 'Sin nombre');
+}
+
+export function agregarCuarto(idMedicion, cuarto) {
+  actualizar((s) => {
+    const m = (s.mediciones ?? []).find((x) => x.id === idMedicion);
+    if (m) m.cuartos.push(cuarto);
+  });
+}
+
+export function actualizarCuarto(idMedicion, idCuarto, cambios) {
+  actualizar((s) => {
+    const m = (s.mediciones ?? []).find((x) => x.id === idMedicion);
+    const i = m?.cuartos.findIndex((c) => c.id === idCuarto) ?? -1;
+    if (i >= 0) m.cuartos[i] = { ...m.cuartos[i], ...cambios };
+  });
+}
+
+export function eliminarCuarto(idMedicion, idCuarto) {
+  actualizar((s) => {
+    const m = (s.mediciones ?? []).find((x) => x.id === idMedicion);
+    if (m) m.cuartos = m.cuartos.filter((c) => c.id !== idCuarto);
+  });
+}
+
+// --------------------------------------------------------------------------- ventas
+
+export function guardarVenta(venta) {
+  const nueva = !(estado.ventas ?? []).some((v) => v.id === venta.id);
+  actualizar((s) => {
+    if (!Array.isArray(s.ventas)) s.ventas = [];
+    const i = s.ventas.findIndex((v) => v.id === venta.id);
+    if (i >= 0) s.ventas[i] = venta;
+    else s.ventas.unshift(venta);
+  });
+  registrar(nueva ? 'Venta registrada' : 'Venta editada',
+    `${venta.cliente || 'Sin cliente'} · ${venta.vendedor || 'Sin vendedor'}`,
+    { ventaId: venta.id });
+  return venta;
+}
+
+export function eliminarVenta(id) {
+  const previa = (estado.ventas ?? []).find((v) => v.id === id);
+  actualizar((s) => { s.ventas = (s.ventas ?? []).filter((v) => v.id !== id); });
+  if (previa) {
+    registrar('Venta eliminada', `${previa.cliente || 'Sin cliente'} · ${previa.vendedor || ''}`);
+  }
+}
+
+export function guardarEquipo(equipo) {
+  actualizar((s) => { s.config.equipo = equipo; });
+  registrar('Cambio de equipo', `${equipo.length} personas`);
 }
 
 export function actualizarConfig(ruta, valor) {

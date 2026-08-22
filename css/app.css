@@ -930,3 +930,144 @@ html.texto-mayor .action__hint  { font-size: 15.5px; }
 html.texto-mayor .desglose { font-size: 16.5px; }
 html.texto-mayor .display  { font-size: clamp(34px, 4.6vw, 48px); }
 html.texto-mayor .title    { font-size: 28px; }
+
+/* ======================================================== portada */
+
+.nav__grupo {
+  align-self: center;
+  font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--ink-4); font-weight: 600;
+  padding-right: var(--s3); margin-right: var(--s1);
+  border-right: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.portada { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s5); align-items: start; }
+@media (max-width: 860px) { .portada { grid-template-columns: 1fr; } }
+
+.opcion {
+  border: 1px solid var(--line); border-radius: var(--r4); background: var(--surface);
+  overflow: hidden; box-shadow: var(--shadow-1);
+  transition: border-color .18s var(--ease), box-shadow .18s var(--ease);
+}
+.opcion:hover { border-color: var(--accent-line); box-shadow: var(--shadow-2); }
+
+.opcion__principal {
+  display: flex; align-items: flex-start; gap: var(--s4); width: 100%; text-align: left;
+  padding: var(--s6) var(--s5) var(--s5); border: 0; background: transparent; cursor: pointer;
+  color: inherit;
+}
+.opcion__icono {
+  width: 48px; height: 48px; flex: none; border-radius: var(--r3);
+  display: grid; place-items: center;
+  background: var(--accent-soft); color: var(--accent);
+}
+.opcion__texto { flex: 1; min-width: 0; }
+.opcion__titulo { display: block; font-family: var(--serif); font-size: 23px; line-height: 1.2; letter-spacing: -.015em; }
+.opcion__lead { display: block; font-size: 14px; color: var(--ink-2); margin-top: 7px; line-height: 1.55; }
+.opcion__flecha { color: var(--ink-4); transform: rotate(-90deg); flex: none; margin-top: 12px; }
+.opcion__principal:hover .opcion__flecha { color: var(--accent); }
+
+.opcion__cifras {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s4);
+  padding: 0 var(--s5) var(--s5);
+}
+.opcion__cifra { font-family: var(--serif); font-size: 21px; line-height: 1.2; margin-top: 2px; }
+
+.opcion__menu { border-top: 1px solid var(--line); background: var(--surface-2); }
+.opcion__punto {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s3);
+  width: 100%; text-align: left; padding: 13px var(--s5);
+  border: 0; border-bottom: 1px solid var(--line); background: transparent;
+  cursor: pointer; color: inherit;
+}
+.opcion__punto:last-child { border-bottom: 0; }
+.opcion__punto:hover { background: var(--surface-3); }
+.opcion__punto svg { color: var(--ink-4); transform: rotate(-90deg); }
+.opcion__punto-t { display: block; font-size: 14.5px; font-weight: 500; }
+.opcion__punto-n { display: block; font-size: 11.5px; color: var(--ink-4); margin-top: 1px; }
+
+.portada__pie { display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap; }
+
+/* ======================================================== medidor */
+
+/* Deja aire abajo para la barra de totales y el teclado de la aplicación. */
+.medidor { padding-bottom: 300px; }
+
+.cuarto { border: 1px solid var(--line); border-radius: var(--r3); background: var(--surface); }
+.cuarto__head { display: flex; align-items: center; gap: var(--s3); padding: var(--s4) var(--s5); }
+.cuarto__nombre { flex: 1; min-width: 0; border-color: transparent; background: transparent; padding-inline: 8px; font-weight: 500; }
+.cuarto__nombre:hover, .cuarto__nombre:focus { border-color: var(--line-2); background: var(--surface); }
+.cuarto__body { padding: 0 var(--s5) var(--s5); }
+
+.cuarto__total { text-align: right; flex: none; line-height: 1.25; }
+.cuarto__m2 { display: block; font-size: 16px; font-weight: 600; }
+.cuarto__ml { display: block; font-size: 11.5px; color: var(--ink-4); }
+
+.cuarto__eco { margin-top: 6px; min-height: 16px; display: flex; flex-direction: column; gap: 2px; }
+.cuarto__error { font-size: 11.5px; color: var(--danger); }
+
+/* Los campos de medida son el corazón de la pantalla: se ven más grandes. */
+.js-medida { font-size: 17px; letter-spacing: .01em; }
+
+.totales {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
+  display: flex; gap: var(--s5); align-items: center;
+  padding: var(--s3) var(--s5);
+  padding-bottom: calc(var(--s3) + env(safe-area-inset-bottom));
+  background: var(--ink); color: #fff;
+  box-shadow: 0 -6px 24px -12px rgba(26, 23, 20, .5);
+}
+.totales__bloque { display: flex; flex-direction: column; gap: 1px; }
+.totales__bloque--fin { margin-left: auto; text-align: right; }
+.totales__k { font-size: 10.5px; letter-spacing: .09em; text-transform: uppercase; opacity: .62; }
+.totales__v { font-size: 17px; font-weight: 600; font-family: var(--serif); }
+
+/* ======================================================== teclado de la aplicación */
+
+.teclado {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 70;
+  background: var(--surface); border-top: 1px solid var(--line-2);
+  box-shadow: 0 -10px 40px -16px rgba(26, 23, 20, .4);
+  padding: var(--s3) var(--s4);
+  padding-bottom: calc(var(--s3) + env(safe-area-inset-bottom));
+  transform: translateY(110%);
+  transition: transform .24s var(--ease);
+}
+.teclado--visible { transform: translateY(0); }
+
+.teclado__head { display: flex; align-items: center; gap: var(--s3); margin-bottom: var(--s2); }
+.teclado__etq {
+  flex: 1; min-width: 0; font-size: 12px; color: var(--ink-3);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+.teclado__rejilla {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;
+  max-width: 460px; margin: 0 auto;
+}
+.teclado__tecla {
+  height: 52px; border: 1px solid var(--line-2); border-radius: var(--r2);
+  background: var(--surface-2); color: var(--ink);
+  font-size: 21px; font-variant-numeric: tabular-nums; font-weight: 500;
+  cursor: pointer; transition: background .1s var(--ease), transform .06s var(--ease);
+}
+.teclado__tecla:hover { background: var(--surface-3); }
+.teclado__tecla:active { transform: scale(.96); background: var(--accent-soft); }
+.teclado__tecla--fn { font-size: 17px; color: var(--ink-2); }
+.teclado__tecla--acento { background: var(--accent-soft); border-color: var(--accent-line); color: var(--accent); font-size: 26px; }
+.teclado__tecla--ok { background: var(--ink); border-color: var(--ink); color: #fff; font-size: 14px; font-weight: 600; }
+
+/* Con el teclado arriba, la barra de totales se sube para no quedar tapada.
+   El teclado vive fuera de .shell, así que la relación se lee desde el body. */
+body:has(.teclado--visible) .totales { bottom: 268px; }
+
+@media (max-width: 620px) {
+  .totales { gap: var(--s4); padding-inline: var(--s4); }
+  .totales__v { font-size: 15px; }
+  .teclado__tecla { height: 48px; font-size: 19px; }
+}
+
+html.texto-grande .teclado__tecla,
+html.texto-mayor .teclado__tecla { height: 60px; font-size: 24px; }
+html.texto-mayor .js-medida { font-size: 20px; }

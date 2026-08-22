@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pruebas del motor de cálculo · Cotizador Mundo de Interiores</title>
-<link rel="stylesheet" href="css/app.css?v=14">
+<link rel="stylesheet" href="css/app.css?v=15">
 <style>
   .main{max-width:920px}
   .t{width:100%;border-collapse:collapse;font-size:13.5px}
@@ -24,7 +24,8 @@
     <h1 class="display mt-3">Pruebas del motor</h1>
     <p class="lead mt-3">
       Verifica que el cálculo de merma, cajas, tela, área mínima, margen e impuestos siga siendo
-      correcto. Corre estas pruebas después de cambiar tarifas o fórmulas.
+      correcto, que el medidor lea las notas de obra como las escribe el equipo, y que el reporte
+      de ventas reparta bien el mes. Corre estas pruebas después de cambiar tarifas o fórmulas.
     </p>
     <div id="resumen" class="mt-5"></div>
     <div id="salida" class="mt-5"></div>
@@ -39,6 +40,10 @@ import { CONFIG_DEFAULT, buscarProductos } from './js/state.js';
 import { CATALOGO_DEMO } from './js/catalog-seed.js';
 import { sugerirMapeo, mapearFilas, normalizarCategoria, plantillaCSV } from './js/importer.js';
 import { CONOCIMIENTO, responder, CONTACTO } from './js/asistente.js';
+import { parsearLista, esLineaZoclo, calcularEscalera, calcularCuarto, calcularMedicion,
+         estimarMedicion, parsearNota } from './js/medidas.js';
+import { importeLinea, totalVenta, anticipoEsperado, estaCobrada, resumenVentas,
+         compararMes, ventasVisibles, esAdmin, rolDe } from './js/ventas.js';
 
 const cfg = structuredClone(CONFIG_DEFAULT);
 const pruebas = [];
@@ -591,6 +596,273 @@ P('Catálogo', 'Toldos y pérgolas se pueden cotizar sin error', () => {
   return { ok: exteriores.length >= 5 && fallos.length === 0,
            obtenido: `${exteriores.length} equipos, ${fallos.length} con error`,
            esperado: '>= 5 equipos, 0 errores' };
+});
+
+// ---------------------------------------------------------------- medidas de obra
+
+// Los casos salen tal cual de las notas del equipo. Si estas pruebas fallan,
+// el medidor está leyendo distinto de como ellos escriben.
+
+P('Medidas', 'Suma tres áreas separadas por coma', () => {
+  const r = parsearLista('16.45,3.81,2.29');
+  return { ok: cerca(r.suma, 22.55) && r.valores.length === 3, obtenido: r.suma, esperado: 22.55 };
+});
+P('Medidas', 'Acepta el punto decimal sin cero adelante', () => {
+  const r = parsearLista('.88,.3,.42');
+  return { ok: cerca(r.suma, 1.6), obtenido: r.suma, esperado: 1.6 };
+});
+P('Medidas', 'El espacio también separa medidas', () => {
+  const r = parsearLista('9.20 6.82 2.50 1 2.1');
+  return { ok: cerca(r.suma, 21.62) && r.valores.length === 5, obtenido: r.suma, esperado: 21.62 };
+});
+P('Medidas', '(2) repite la medida dos veces', () => {
+  const r = parsearLista('21.9,1.86(2),.42(2)');
+  return { ok: cerca(r.suma, 26.46) && r.cuenta === 5, obtenido: r.suma, esperado: 26.46 };
+});
+P('Medidas', 'El asterisco multiplica los lados de un rectángulo', () => {
+  const r = parsearLista('4*5,2.5*2');
+  return { ok: cerca(r.suma, 25), obtenido: r.suma, esperado: 25 };
+});
+P('Medidas', 'El prefijo Z- se ignora al leer la lista de zoclo', () => {
+  const r = parsearLista('Z-1.91,.88,1.27,.30,3.2,4.06,4.04,2.47,.88');
+  return { ok: cerca(r.suma, 19.01) && r.valores.length === 9, obtenido: r.suma, esperado: 19.01 };
+});
+P('Medidas', 'Un token con letras se reporta como error, no se suma', () => {
+  const r = parsearLista('3.5,abc,2');
+  return { ok: cerca(r.suma, 5.5) && r.errores.length === 1, obtenido: `${r.suma} · ${r.errores.length} error`, esperado: '5.5 · 1 error' };
+});
+P('Medidas', 'Una lista vacía da cero, no NaN', () => {
+  const r = parsearLista('');
+  return { ok: r.suma === 0 && r.valores.length === 0, obtenido: r.suma, esperado: 0 };
+});
+P('Medidas', 'Reconoce el renglón de zoclo por su prefijo', () => {
+  const ok = esLineaZoclo('Z-2.13,1.10') && esLineaZoclo('Zoclo: 1.5') && !esLineaZoclo('16.45,3.81');
+  return { ok, obtenido: ok, esperado: true };
+});
+P('Medidas', 'Sin arrastre binario en la suma de decimales', () => {
+  const r = parsearLista('.1,.2');
+  return { ok: r.suma === 0.3, obtenido: r.suma, esperado: 0.3 };
+});
+
+P('Escalera', 'Catorce escalones de .90 por .32 huella y .15 peralte', () => {
+  const e = calcularEscalera({ piezas: 14, anchoM: 0.90, huellaM: 0.32, peralteM: 0.15 });
+  return { ok: cerca(e.areaM2, 5.922) && cerca(e.desarrollo, 0.47), obtenido: e.areaM2, esperado: 5.922 };
+});
+P('Escalera', 'El zoclo de un solo lado cuenta solo los escalones indicados', () => {
+  const e = calcularEscalera({ piezas: 14, anchoM: 0.90, huellaM: 0.32, peralteM: 0.15,
+                               escalonesZoclo: 7, ladosZoclo: 1 });
+  return { ok: cerca(e.zocloML, 3.29), obtenido: e.zocloML, esperado: 3.29 };
+});
+P('Escalera', 'Con zoclo en los dos lados el metraje se duplica', () => {
+  const uno = calcularEscalera({ piezas: 10, anchoM: 1, huellaM: 0.3, peralteM: 0.15, ladosZoclo: 1 });
+  const dos = calcularEscalera({ piezas: 10, anchoM: 1, huellaM: 0.3, peralteM: 0.15, ladosZoclo: 2 });
+  return { ok: cerca(dos.zocloML, uno.zocloML * 2), obtenido: dos.zocloML, esperado: uno.zocloML * 2 };
+});
+P('Escalera', 'Sin zoclo el metraje es cero pero el área se conserva', () => {
+  const e = calcularEscalera({ piezas: 10, anchoM: 1, huellaM: 0.3, peralteM: 0.15, ladosZoclo: 0 });
+  return { ok: e.zocloML === 0 && cerca(e.areaM2, 4.5), obtenido: `${e.areaM2} m² · ${e.zocloML} ml`, esperado: '4.5 m² · 0 ml' };
+});
+
+// La nota real que mandó el equipo, pegada tal cual.
+const NOTA = `Jackie
+
+Cuarto 2
+16.45,3.81,2.29
+Z-1.91,.88,1.27,.30,3.2,4.06,4.04,2.47,.88
+
+Cuarto 3
+16.11,1.97
+Z-2.75,4.35,.69,1.07,3.56,1.4,.3
+
+Cuarto 1
+21.9,1.86(2),.42(2)
+Z-5.05,.93,.51,5.05,1.18,1.48
+
+Pulido
+13.47,13.74
+
+Pasillo
+11.64,9.73
+Z-.4,.72,1.48,1.23,.25,2.5,.65,.27
+
+Escalera
+14 piezas
+.90 de ancho
+.32 huella
+.15 peralte
+
+Descanso 2.11
+Z-2.13,1.10
+Zoclo en 7 escalones solo de un lado
+
+Cocina
+9.20,6.82,2.50,1,2.1`;
+
+P('Nota', 'Separa la nota en los siete cuartos capturados', () => {
+  const { cuartos } = parsearNota(NOTA);
+  return { ok: cuartos.length === 8, obtenido: cuartos.length, esperado: 8 };
+});
+P('Nota', 'Toma el primer renglón como nombre de la obra', () => {
+  const { proyecto } = parsearNota(NOTA);
+  return { ok: proyecto === 'Jackie', obtenido: proyecto, esperado: 'Jackie' };
+});
+P('Nota', 'El número del nombre no se confunde con una medida', () => {
+  const { cuartos } = parsearNota(NOTA);
+  const c = cuartos.find((x) => x.nombre === 'Cuarto 3');
+  const r = calcularCuarto(c);
+  return { ok: cerca(r.areaM2, 18.08), obtenido: r.areaM2, esperado: 18.08 };
+});
+P('Nota', 'Un decimal en el encabezado sí es medida: "Descanso 2.11"', () => {
+  const { cuartos } = parsearNota(NOTA);
+  const c = cuartos.find((x) => x.nombre === 'Descanso');
+  return { ok: !!c && cerca(calcularCuarto(c).areaM2, 2.11), obtenido: c ? calcularCuarto(c).areaM2 : 'no encontrado', esperado: 2.11 };
+});
+P('Nota', 'Los renglones Z- llegan al campo de zoclo, no al de área', () => {
+  const { cuartos } = parsearNota(NOTA);
+  const c = cuartos.find((x) => x.nombre === 'Cuarto 2');
+  const r = calcularCuarto(c);
+  return { ok: cerca(r.areaM2, 22.55) && cerca(r.zocloML, 19.01),
+           obtenido: `${r.areaM2} m² · ${r.zocloML} ml`, esperado: '22.55 m² · 19.01 ml' };
+});
+P('Nota', 'Arma la escalera con piezas, ancho, huella y peralte', () => {
+  const { cuartos } = parsearNota(NOTA);
+  const c = cuartos.find((x) => x.tipo === 'escalera');
+  return { ok: !!c && cerca(calcularCuarto(c).areaM2, 5.922),
+           obtenido: c ? calcularCuarto(c).areaM2 : 'no encontrado', esperado: 5.922 };
+});
+// El equipo escribe esta instrucción debajo del descanso, pero habla de la
+// escalera. Si se aplicara al descanso, la escalera cobraría zoclo de más.
+P('Nota', '"Zoclo en 7 escalones solo de un lado" va a la escalera, no al descanso', () => {
+  const { cuartos } = parsearNota(NOTA);
+  const esc = cuartos.find((x) => x.tipo === 'escalera');
+  return { ok: !!esc && cerca(calcularCuarto(esc).zocloML, 3.29),
+           obtenido: esc ? calcularCuarto(esc).zocloML : 'no encontrada', esperado: 3.29 };
+});
+P('Nota', 'El descanso conserva su propio zoclo y guarda la instrucción como nota', () => {
+  const { cuartos } = parsearNota(NOTA);
+  const desc = cuartos.find((x) => x.nombre === 'Descanso');
+  return { ok: !!desc && cerca(calcularCuarto(desc).zocloML, 3.23) && /escalones/i.test(desc.nota),
+           obtenido: desc ? `${calcularCuarto(desc).zocloML} · "${desc.nota}"` : 'no encontrado',
+           esperado: '3.23 · con la nota' };
+});
+P('Nota', 'El total de la obra cuadra con la suma de sus cuartos', () => {
+  const { cuartos } = parsearNota(NOTA);
+  const t = calcularMedicion({ cuartos });
+  const suma = cuartos.reduce((a, c) => a + calcularCuarto(c).areaM2, 0);
+  return { ok: cerca(t.areaM2, suma), obtenido: t.areaM2, esperado: Number(suma.toFixed(4)) };
+});
+
+P('Estimado', 'Aplica merma, precio por m² y zoclo antes del IVA', () => {
+  const med = { cuartos: [{ tipo: 'area', areas: '100', zoclo: '10', escalera: {} }],
+                precioM2: null, mermaPct: null, incluirZoclo: true, incluirInstalacion: false };
+  const e = estimarMedicion(med, cfg);
+  // 110 m² × 300 = 33 000, más 10 ml × 145 = 1 450.
+  return { ok: cerca(e.material, 33000) && cerca(e.zoclo, 1450) && cerca(e.subtotal, 34450),
+           obtenido: e.subtotal, esperado: 34450 };
+});
+P('Estimado', 'El precio por obra pisa al promedio de Ajustes', () => {
+  const med = { cuartos: [{ tipo: 'area', areas: '100', zoclo: '', escalera: {} }],
+                precioM2: 500, mermaPct: 0, incluirZoclo: false, incluirInstalacion: false };
+  const e = estimarMedicion(med, cfg);
+  return { ok: cerca(e.subtotal, 50000), obtenido: e.subtotal, esperado: 50000 };
+});
+P('Estimado', 'Una obra sin medidas da cero, no NaN', () => {
+  const e = estimarMedicion({ cuartos: [] }, cfg);
+  return { ok: e.total === 0 && Number.isFinite(e.total), obtenido: e.total, esperado: 0 };
+});
+
+// ---------------------------------------------------------------- ventas
+
+const V = (vendedor, fecha, lineas, pagado = 0, anticipoPct = 0.8) => ({
+  id: 'v' + Math.random().toString(36).slice(2, 8),
+  fecha, vendedor, cliente: 'Cliente', obra: 'Obra',
+  lineas: lineas.map((l, i) => ({ id: 'l' + i, apartado: '', proveedor: 'Prov', unidad: 'm2', ...l })),
+  anticipoPct, pagado,
+});
+
+const VENTAS = [
+  V('Sebastián', '2026-08-04', [{ categoria: 'spc', linea: 'Roble', color: 'Nogal', cantidad: 100, precioUnit: 650 }], 52000),
+  V('Sebastián', '2026-08-18', [{ categoria: 'mantenimiento', linea: 'Pulido', color: '—', cantidad: 40, precioUnit: 250 }], 0),
+  V('Melissa',   '2026-08-11', [{ categoria: 'spc', linea: 'Roble', color: 'Nogal', cantidad: 50, precioUnit: 650 },
+                                { categoria: 'porcelanato', linea: 'Marmo', color: 'Blanco', cantidad: 20, precioUnit: 900 }], 40000),
+  V('Melissa',   '2026-07-09', [{ categoria: 'spc', linea: 'Roble', color: 'Gris', cantidad: 30, precioUnit: 650 }], 15600),
+];
+
+P('Ventas', 'El importe de una partida es cantidad por precio', () => {
+  const r = importeLinea({ cantidad: 12.5, precioUnit: 640 });
+  return { ok: cerca(r, 8000), obtenido: r, esperado: 8000 };
+});
+P('Ventas', 'El total del mes solo suma las ventas de ese mes', () => {
+  const r = resumenVentas(VENTAS, { mes: '2026-08' });
+  // 65 000 + 10 000 + (32 500 + 18 000) = 125 500
+  return { ok: cerca(r.total, 125500) && r.cuenta === 3, obtenido: r.total, esperado: 125500 };
+});
+P('Ventas', 'Reparte el mes entre los asesores y suma cien por ciento', () => {
+  const r = resumenVentas(VENTAS, { mes: '2026-08' });
+  const suma = r.vendedores.reduce((a, v) => a + v.participacion, 0);
+  return { ok: r.vendedores.length === 2 && cerca(suma, 1, 0.0001), obtenido: suma, esperado: 1 };
+});
+P('Ventas', 'Ordena a los asesores de mayor a menor', () => {
+  const r = resumenVentas(VENTAS, { mes: '2026-08' });
+  return { ok: r.vendedores[0].vendedor === 'Sebastián' && cerca(r.vendedores[0].total, 75000),
+           obtenido: `${r.vendedores[0].vendedor} ${r.vendedores[0].total}`, esperado: 'Sebastián 75000' };
+});
+P('Ventas', 'La mezcla por familia sale de las partidas, no de un supuesto', () => {
+  const r = resumenVentas(VENTAS, { mes: '2026-08' });
+  const spc = r.categorias.find((c) => c.categoria === 'spc');
+  // 65 000 + 32 500 = 97 500 de 125 500 = 77.7%
+  return { ok: cerca(spc.total, 97500) && cerca(spc.participacion, 0.7769, 0.001),
+           obtenido: spc.participacion, esperado: 0.7769 };
+});
+P('Ventas', 'Agrupa el producto por línea y color, no por proveedor', () => {
+  const r = resumenVentas(VENTAS, { mes: '2026-08' });
+  const roble = r.lineas.find((l) => l.linea === 'Roble' && l.color === 'Nogal');
+  return { ok: !!roble && cerca(roble.cantidad, 150), obtenido: roble ? roble.cantidad : 'no encontrada', esperado: 150 };
+});
+P('Ventas', 'Separa lo cobrado de lo que falta por cobrar', () => {
+  const r = resumenVentas(VENTAS, { mes: '2026-08' });
+  return { ok: cerca(r.cobrado, 92000) && cerca(r.porCobrar, 33500),
+           obtenido: `${r.cobrado} · ${r.porCobrar}`, esperado: '92000 · 33500' };
+});
+P('Ventas', 'El anticipo esperado es el ochenta por ciento de la venta', () => {
+  const v = VENTAS[0];
+  return { ok: cerca(anticipoEsperado(v), 52000), obtenido: anticipoEsperado(v), esperado: 52000 };
+});
+P('Ventas', 'Una venta con el anticipo completo queda marcada como cobrada', () => {
+  return { ok: estaCobrada(VENTAS[0]) && !estaCobrada(VENTAS[1]),
+           obtenido: `${estaCobrada(VENTAS[0])} · ${estaCobrada(VENTAS[1])}`, esperado: 'true · false' };
+});
+P('Ventas', 'Compara contra el mes anterior', () => {
+  const c = compararMes(VENTAS, '2026-08');
+  // 125 500 contra 19 500 del mes previo.
+  return { ok: c.mesPrevio === '2026-07' && cerca(c.totalPrevio, 19500),
+           obtenido: `${c.mesPrevio} ${c.totalPrevio}`, esperado: '2026-07 19500' };
+});
+P('Ventas', 'Un mes sin ventas devuelve ceros, no NaN', () => {
+  const r = resumenVentas(VENTAS, { mes: '2026-01' });
+  return { ok: r.total === 0 && r.ticket === 0 && r.vendedores.length === 0, obtenido: r.total, esperado: 0 };
+});
+
+P('Permisos', 'La dirección ve las ventas de todo el equipo', () => {
+  const eq = cfg.equipo;
+  const r = ventasVisibles(VENTAS, 'Melissa', eq);
+  return { ok: esAdmin('Melissa', eq) && r.length === VENTAS.length, obtenido: r.length, esperado: VENTAS.length };
+});
+P('Permisos', 'El asesor ve solamente lo suyo', () => {
+  const eq = [...cfg.equipo, { nombre: 'Aarón', rol: 'vendedor' }];
+  const r = ventasVisibles(VENTAS, 'Aarón', eq);
+  return { ok: !esAdmin('Aarón', eq) && r.length === 0, obtenido: r.length, esperado: 0 };
+});
+P('Permisos', 'El nombre no distingue mayúsculas ni espacios de sobra', () => {
+  const r = ventasVisibles(VENTAS, '  sebastián ', cfg.equipo);
+  return { ok: r.length === 4, obtenido: r.length, esperado: 4 };
+});
+P('Permisos', 'Sin nombre capturado no se ve ninguna venta', () => {
+  const r = ventasVisibles(VENTAS, '', cfg.equipo);
+  return { ok: r.length === 0, obtenido: r.length, esperado: 0 };
+});
+P('Permisos', 'Quien no está en la lista del equipo entra como asesor', () => {
+  return { ok: rolDe('Juan', cfg.equipo) === 'vendedor', obtenido: rolDe('Juan', cfg.equipo), esperado: 'vendedor' };
 });
 
 // ---------------------------------------------------------------- ejecución

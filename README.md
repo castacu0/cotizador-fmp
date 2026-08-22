@@ -1,10 +1,64 @@
-# Cotizador · Mundo de Interiores
+# Mundo de Interiores · Cotizador y ventas
 
-Aplicación web para cotizar pisos de ingeniería, SPC, laminado, deck, porcelanato,
-cortinas, persianas, toldos y pérgolas, con PDF de hasta tres páginas listo para
-enviar al cliente.
+Aplicación web con dos caminos:
+
+1. **Cotización**: medir la obra en el teléfono, armar la cotización de pisos de
+   ingeniería, SPC, laminado, deck, porcelanato, cortinas, persianas, toldos y
+   pérgolas, y sacar el PDF de hasta tres páginas listo para el cliente.
+2. **Reporte mensual de ventas**: qué vendió cada asesor, de qué línea y color,
+   en qué proporción, y cuánto de eso ya está cobrado.
 
 No necesita instalación ni servidor: son archivos estáticos que corren en el navegador.
+
+---
+
+## Medir en obra
+
+`Inicio > Cotización > Medir en obra`.
+
+Quien mide captura con puros números, con la misma notación que ya usa en sus notas:
+
+| Se escribe | Quiere decir |
+|---|---|
+| `16.45,3.81,2.29` | Tres áreas que se suman: 22.55 m² |
+| `1.86(2)` | Esa medida, dos veces |
+| `4*5` | Los dos lados de un rectángulo: 20 m² |
+| `.88` | Se puede omitir el cero de adelante |
+| Campo de zoclo | Metros lineales, aparte del área |
+
+El teclado es de la aplicación, no del teléfono: solo dígitos, coma, punto,
+multiplicar, repetir y borrar. Se apaga desde `Ajustes > Medidor de obra`.
+
+**Pegar nota** toma una nota de Apple Notes tal como está y la separa en cuartos:
+reconoce los renglones que empiezan con `Z-` como zoclo, `14 piezas / .90 de ancho /
+.32 huella / .15 peralte` como escalera, y distingue `Cuarto 2` (nombre) de
+`Descanso 2.11` (medida).
+
+Al terminar da un estimado de campo con el precio promedio de `Ajustes`, y el botón
+**Cotizar** pasa el total a una partida real del cotizador.
+
+El estimado es provisional: usa un promedio por m², no las listas de los 32 proveedores.
+Cuando esas listas entren, el número deja de ser aproximado.
+
+---
+
+## Reporte mensual de ventas
+
+`Inicio > Reporte mensual de ventas`.
+
+Una cotización enviada no cuenta. Cuenta la venta registrada, y se marca cobrada
+cuando entró el anticipo (80% por política de la empresa).
+
+El reporte da, por mes: vendido, cobrado, por cobrar y ticket promedio; el desglose
+por asesor con su mezcla de producto; la proporción por familia; y el detalle por
+**línea y color**, que es como el equipo identifica el producto, no por código.
+
+Cada venta lleva su carpeta de Drive con los cinco documentos del proyecto:
+presupuesto, pago del anticipo, requisición, orden de compra (Aarón) e instalación.
+
+**Quién ve qué**: Fernando, Melissa y Sebastián ven todo el equipo; los demás ven solo
+lo suyo. La lista se edita en `Ajustes > Equipo`. Es separación por confianza, no un
+candado: sin servidor no hay contraseñas que valgan.
 
 ---
 
@@ -26,19 +80,34 @@ El cuello de botella no es el precio por metro, es todo lo que va alrededor:
 
 ## Cómo se usa
 
-1. **Cotizar**: busca el material, captura las medidas, marca accesorios, descarga el PDF.
+La portada tiene dos opciones y cada una abre su propio menú. El logotipo regresa
+a la portada.
+
+**Cotización**
+
+1. **Medir**: levantamiento en obra con el teclado numérico, importación de notas
+   y estimado de campo.
+2. **Cotizar**: busca el material, captura las medidas, marca accesorios, descarga el PDF.
    Al terminar se abre el centro de envío con nueve plantillas de seguimiento.
-2. **Catálogo**: alta, edición y búsqueda de materiales. Cambio de precios por familia.
+3. **Catálogo**: alta, edición y búsqueda de materiales. Cambio de precios por familia.
    Cada material trae su nombre en inglés, visible y buscable. Exporta a CSV.
-3. **Ahorro**: qué ha ahorrado la empresa, margen promedio, valor cotizado por mes,
+4. **Ayuda**: fórmulas explicadas y material de capacitación para el equipo de ventas.
+5. **Servicios**: qué incluye la herramienta hoy y qué entra en la Fase 2.
+
+**Ventas**
+
+6. **Reporte**: el mes por asesor, por familia y por línea y color. Exporta a CSV.
+7. **Registrar**: alta de la venta con sus partidas, su anticipo y su carpeta de Drive.
+8. **Tablero**: qué ha ahorrado la empresa, margen promedio, valor cotizado por mes,
    registro de actividad (quién entró y quién cotizó) y bitácora de cambios de precio.
-4. **Servicios**: qué incluye la herramienta hoy y qué entra en la Fase 2.
-5. **Ayuda**: fórmulas explicadas y material de capacitación para el equipo de ventas.
-6. **Ajustes**: quién usa el equipo, datos de la empresa, margen, IVA, tipo de cambio,
-   tarifas e importación del catálogo.
+
+**Siempre**
+
+9. **Ajustes**: quién usa la computadora, equipo y permisos, supuestos del medidor,
+   datos de la empresa, margen, IVA, tipo de cambio, tarifas e importación del catálogo.
 
 Arriba a la derecha están: el control **A− / A+** con tres tamaños de texto,
-**Dudas** que abre el asistente y **Tutorial** que hace un recorrido guiado de quince pasos.
+**Dudas** que abre el asistente y **Tutorial** que hace un recorrido guiado.
 El botón **Cargar ejemplo** arma una cotización completa de hotel para ver la aplicación funcionando.
 
 Atajos: `/` enfoca el buscador, `⌘K` o `Ctrl+K` va al cotizador y busca.
@@ -90,14 +159,32 @@ Hay que decirlos claro antes de operar con clientes reales:
   que carga una persona no lo ven las demás. Se comparte exportando el respaldo JSON
   desde Ajustes y restaurándolo en las otras máquinas.
 - **Si se limpian los datos del navegador, se pierde todo.** Exportar respaldo con regularidad.
-- **No hay usuarios ni permisos.** Cualquiera que abra el enlace ve la aplicación. La
-  bitácora atribuye los cambios al nombre capturado en Ajustes: es atribución por
-  confianza, no control de acceso.
+- **No hay usuarios ni contraseñas.** Cualquiera que abra el enlace ve la aplicación. El
+  rol de `Ajustes > Equipo` decide qué se muestra, y la bitácora atribuye los cambios al
+  nombre capturado: las dos cosas son por confianza, no control de acceso. Quien abra el
+  navegador de otra persona verá lo de esa persona.
+- **El reporte de ventas no se comparte entre computadoras.** Cada quien registra en la
+  suya. Hasta que exista la hoja de cálculo compartida, el mes consolidado se arma
+  exportando el CSV de cada persona.
 - **El catálogo que viene cargado es de demostración.** Los precios son de referencia
   de mercado, no los de la empresa.
+- **El estimado del medidor usa un promedio por m².** No es la lista real de los 32
+  proveedores. Sirve para dar un número en la visita, no para cerrar.
 
 Para trabajo real con diez personas hace falta base de datos, cuentas y sincronización.
 Eso es la fase 2.
+
+---
+
+## Lo que sigue
+
+Pendiente de la migración que se acordó con la dirección:
+
+- Las 34 hojas de Excel de listas de precios pasan a hoja de cálculo compartida, con la
+  estructura `Apartado · Proveedor · Código · Línea · Color · Bisel`.
+- Los 32 proveedores quedan como catálogo propio, para que el estimado del medidor y el
+  reporte de ventas dejen de usar promedios.
+- Cuentas reales por persona, que reemplacen la separación por confianza de hoy.
 
 **Nunca subas precios reales a un repositorio público.** El catálogo con costos y márgenes
 se carga desde el navegador de cada quien, no se guarda en el código.
@@ -110,9 +197,11 @@ se carga desde el navegador de cada quien, no se guarda en el código.
 index.html            Entrada
 css/app.css           Sistema de diseño completo
 js/
-  app.js              Arranque, ruteo y definición del tutorial
+  app.js              Arranque, ruteo por grupos y definición del tutorial
   state.js            Estado global y persistencia local
-  pricing.js          Motor de cálculo. Toda la lógica comercial vive aquí
+  pricing.js          Motor de cálculo de la cotización
+  medidas.js          Notación de obra: lectura, escalera, estimado, importar nota
+  ventas.js           Agregados del reporte mensual y permisos por rol
   pdf.js              Generación del PDF por flujo, tope estricto de 3 páginas
   mensajes.js         Plantillas de envío y seguimiento
   asistente.js        Asistente de dudas y contacto de soporte
@@ -123,8 +212,9 @@ js/
   tour.js             Tutorial guiado
   ui.js               Componentes compartidos
   format.js           Formato es-MX y utilidades de DOM
-  views/              Cotizador, catálogo, ahorro, servicios, ayuda y ajustes
-pruebas.html          85 pruebas del motor de cálculo, importación y buscador
+  views/              inicio, medidor, cotizador, catálogo, ventas, registro,
+                      ahorro, servicios, ayuda y ajustes
+pruebas.html          127 pruebas: cálculo, importación, buscador, medidas y ventas
 servidor-dev.py       Servidor local sin caché para desarrollo
 vendor/               jsPDF y SheetJS, incluidos localmente
 ```

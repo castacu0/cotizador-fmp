@@ -7,6 +7,31 @@ import { CONTACTO, abrirAsistente, CONOCIMIENTO } from '../asistente.js';
 
 const INCLUIDO = [
   {
+    icono: 'regla', titulo: 'Medidor de obra en el teléfono',
+    detalle: 'Quien mide captura con puros números, con la misma notación de sus notas: 16.45,3.81,2.29 son tres áreas que se suman, 1.86(2) es esa medida dos veces, 4*5 son los lados de un rectángulo, y el zoclo va en su propio renglón. El teclado es de la aplicación, no del teléfono. Cuarto por cuarto, con escaleras por escalón, huella y peralte.',
+    estado: 'Activo',
+  },
+  {
+    icono: 'copiar', titulo: 'Importar la nota del teléfono',
+    detalle: 'Se pega la nota tal como está y la aplicación la separa en cuartos: reconoce los renglones Z- como zoclo, arma la escalera con piezas, ancho, huella y peralte, y distingue "Cuarto 2" de "Descanso 2.11". Muestra qué entendió antes de confirmar.',
+    estado: 'Activo',
+  },
+  {
+    icono: 'barras', titulo: 'Reporte mensual de ventas',
+    detalle: 'Qué vendió cada asesor, de qué familia, en qué proporción y con qué ticket. Detalle por línea y color, que es como el equipo reconoce el producto. Vendido contra cobrado, y lo que falta de anticipo por cada obra. Exporta a CSV.',
+    estado: 'Activo',
+  },
+  {
+    icono: 'caja', titulo: 'Carpeta del proyecto',
+    detalle: 'Cada venta lleva su enlace de Drive y la lista de los cinco documentos que tienen que existir antes de comprar material: presupuesto, pago del anticipo, requisición, orden de compra e instalación, cada uno con su responsable.',
+    estado: 'Activo',
+  },
+  {
+    icono: 'usuario', titulo: 'Separación por rol',
+    detalle: 'Dirección ve las ventas de todo el equipo; el asesor ve las suyas. La lista se edita en Ajustes. Sin servidor no hay contraseñas, así que separa la información sin protegerla: eso llega en la fase 2.',
+    estado: 'Activo',
+  },
+  {
     icono: 'buscar', titulo: 'Buscador de materiales',
     detalle: 'Combina varias palabras a la vez. Encuentra por nombre, SKU, especie, medida, acabado, color y también por el nombre en inglés del material.',
     estado: 'Activo',
@@ -68,12 +93,24 @@ const INCLUIDO = [
   },
   {
     icono: 'ayuda', titulo: 'Capacitación integrada',
-    detalle: 'Tutorial guiado de quince pasos y sección de ayuda con las fórmulas explicadas, buenas prácticas del equipo, qué recomendar según el proyecto y los errores que cuestan dinero.',
+    detalle: 'Tutorial guiado paso a paso y sección de ayuda con las fórmulas explicadas, buenas prácticas del equipo, qué recomendar según el proyecto y los errores que cuestan dinero.',
     estado: 'Activo',
   },
 ];
 
 const FASE2 = [
+  {
+    titulo: 'Las 34 listas de precios en hoja de cálculo compartida',
+    detalle: 'Los 32 proveedores con su estructura real: apartado, proveedor, código, línea, color y bisel. Hoy son 34 archivos de Excel sueltos, y por eso el medidor todavía estima con un promedio por metro en vez de con el precio de la línea.',
+  },
+  {
+    titulo: 'Margen real por producto',
+    detalle: 'Con las listas cargadas, el reporte deja de decir solo cuánto se vendió y empieza a decir cuánto se ganó, por línea y por proveedor.',
+  },
+  {
+    titulo: 'Reporte consolidado del mes',
+    detalle: 'Hoy cada quien registra en su computadora y el mes se arma juntando los CSV. Con base de datos, la dirección abre el mes completo sin pedirle nada a nadie.',
+  },
   {
     titulo: 'Base de datos compartida',
     detalle: 'El catálogo deja de vivir en cada computadora. Una sola lista de precios que todos ven igual, actualizada en el momento.',
