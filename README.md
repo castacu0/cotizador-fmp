@@ -12,6 +12,30 @@ No necesita instalación ni servidor: son archivos estáticos que corren en el n
 
 ---
 
+## Enlaces
+
+| Para qué | Dirección |
+|---|---|
+| Aplicación completa, en la computadora | https://castacu0.github.io/cotizador-fmp/ |
+| Medidor, en el teléfono de quien mide | https://castacu0.github.io/cotizador-fmp/#/medidor |
+| Pruebas del motor | https://castacu0.github.io/cotizador-fmp/pruebas.html |
+
+La presentación para la dirección **no se publica aquí**: lleva precios y este repositorio
+es público. Vive en `docs/presentacion.html`, está en `.gitignore`, y se comparte por
+enlace privado.
+
+Los dos primeros están también en `Ajustes > Enlaces para el equipo`, con botón de copiar.
+
+**Para dejarla como aplicación en el teléfono**: se abre el enlace del medidor en Safari,
+Compartir, *Agregar a inicio*. Queda a pantalla completa, sin barra del navegador. En
+Android es el menú de tres puntos, *Agregar a pantalla principal*. Trae `manifest.webmanifest`
+con accesos directos a Medir y a Ventas.
+
+El slug `cotizador-fmp` se dejó como estaba a propósito: cambiarlo rompe el enlace que
+el equipo ya tiene guardado.
+
+---
+
 ## Medir en obra
 
 `Inicio > Cotización > Medir en obra`.
@@ -28,6 +52,18 @@ Quien mide captura con puros números, con la misma notación que ya usa en sus 
 
 El teclado es de la aplicación, no del teléfono: solo dígitos, coma, punto,
 multiplicar, repetir y borrar. Se apaga desde `Ajustes > Medidor de obra`.
+
+Arriba a la derecha se elige **láser** o **cinta**. Con láser se captura el área
+directa; con cinta cambian los ejemplos a dos lados multiplicados (`4*5`).
+
+Los cuartos se agregan de un toque: recámara, baño, cocina, sala, comedor, pasillo,
+escalera, patio. Cada chip numera solo (`Recámara`, `Recámara 2`) y el bote lo quita.
+Da igual si la casa trae tres cuartos o siete.
+
+**Fotos**: cada cuarto acepta fotos desde la cámara, y son opcionales. Se reducen a
+1600 px y JPEG antes de guardarse, así que una foto de teléfono de 4 MB queda en unos
+200 KB. Viven en IndexedDB, no en el respaldo JSON: si se limpian los datos del
+navegador se pierden, y ese es el precio de no tener servidor.
 
 **Pegar nota** toma una nota de Apple Notes tal como está y la separa en cuartos:
 reconoce los renglones que empiezan con `Z-` como zoclo, `14 piezas / .90 de ancho /
@@ -46,19 +82,36 @@ Cuando esas listas entren, el número deja de ser aproximado.
 
 `Inicio > Reporte mensual de ventas`.
 
-Una cotización enviada no cuenta. Cuenta la venta registrada, y se marca cobrada
-cuando entró el anticipo (80% por política de la empresa).
+Una cotización enviada no cuenta. Cuenta la venta registrada, y el color lo dice
+antes de que alguien lea la cifra:
 
-El reporte da, por mes: vendido, cobrado, por cobrar y ticket promedio; el desglose
-por asesor con su mezcla de producto; la proporción por familia; y el detalle por
-**línea y color**, que es como el equipo identifica el producto, no por código.
+| Color | Estado | Qué significa |
+|---|---|---|
+| Ámbar | Cotizada | Enviada al cliente y sin pago. Todavía no es venta |
+| Verde | Anticipada | Entró el 80%. Ya se puede levantar la requisición |
+| Azul | Liquidada | Pagada al cien por ciento |
+| Gris | Cancelada | No se concretó. No suma al mes ni al asesor |
+
+El color cambia en el momento en que se captura el pago. La barra **De cotizado a
+cobrado** enseña cuánto del mes está en cada peldaño.
+
+El reporte da, por mes: vendido, cobrado, por cobrar y ticket promedio; el comparativo
+entre tiendas; el desglose por asesor con su mezcla de producto; la proporción por
+familia; y el detalle por **línea y color**, que es como el equipo identifica el
+producto, no por código.
 
 Cada venta lleva su carpeta de Drive con los cinco documentos del proyecto:
 presupuesto, pago del anticipo, requisición, orden de compra (Aarón) e instalación.
+En cuanto la orden de compra está marcada, la pantalla dice que ya se puede pedir
+el material.
+
+**Tiendas y equipo**: tres tiendas con dos asesores cada una, seis en total. Fernando
+y Sebastián son los asesores principales y a la vez dirección. Melissa administra las
+tiendas y no aparece como asesora de venta. Se edita en `Ajustes > Equipo`.
 
 **Quién ve qué**: Fernando, Melissa y Sebastián ven todo el equipo; los demás ven solo
-lo suyo. La lista se edita en `Ajustes > Equipo`. Es separación por confianza, no un
-candado: sin servidor no hay contraseñas que valgan.
+lo suyo. Es separación por confianza, no un candado: sin servidor no hay contraseñas
+que valgan.
 
 ---
 
@@ -170,6 +223,10 @@ Hay que decirlos claro antes de operar con clientes reales:
   de mercado, no los de la empresa.
 - **El estimado del medidor usa un promedio por m².** No es la lista real de los 32
   proveedores. Sirve para dar un número en la visita, no para cerrar.
+- **La mano de obra del PDF es de referencia.** Sale desglosada y con su nota al pie,
+  pero la tarifa todavía no es la real de cuadrilla.
+- **Las fotos no entran al respaldo JSON.** Pesan demasiado. Viven solo en el navegador
+  donde se tomaron.
 
 Para trabajo real con diez personas hace falta base de datos, cuentas y sincronización.
 Eso es la fase 2.
@@ -201,7 +258,8 @@ js/
   state.js            Estado global y persistencia local
   pricing.js          Motor de cálculo de la cotización
   medidas.js          Notación de obra: lectura, escalera, estimado, importar nota
-  ventas.js           Agregados del reporte mensual y permisos por rol
+  ventas.js           Agregados del reporte, semáforo de estado y permisos
+  fotos.js            Fotos de obra en IndexedDB, con compresión previa
   pdf.js              Generación del PDF por flujo, tope estricto de 3 páginas
   mensajes.js         Plantillas de envío y seguimiento
   asistente.js        Asistente de dudas y contacto de soporte
@@ -214,7 +272,10 @@ js/
   format.js           Formato es-MX y utilidades de DOM
   views/              inicio, medidor, cotizador, catálogo, ventas, registro,
                       ahorro, servicios, ayuda y ajustes
-pruebas.html          127 pruebas: cálculo, importación, buscador, medidas y ventas
+manifest.webmanifest  Para instalarla en el teléfono
+assets/icono.svg      Icono de la aplicación
+pruebas.html          143 pruebas: cálculo, importación, buscador, medidas,
+                      ventas, semáforo y tiendas
 servidor-dev.py       Servidor local sin caché para desarrollo
 vendor/               jsPDF y SheetJS, incluidos localmente
 ```

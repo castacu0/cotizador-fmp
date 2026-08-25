@@ -4,6 +4,7 @@ import { el, fmtMXN, fmtNum, fmtFechaCorta } from '../format.js';
 import * as S from '../state.js';
 import { CATEGORIAS } from '../pricing.js';
 import { leerArchivo, sugerirMapeo, mapearFilas, plantillaCSV } from '../importer.js';
+import { asesoresDe, plantillaPorSucursal } from '../ventas.js';
 import { icono, accion, campo, entrada, selector, casilla, abrirModal, cerrarModal,
          confirmar, avisar, nota, descargarTexto } from '../ui.js';
 
@@ -24,6 +25,7 @@ export function render(raiz) {
       bloqueUsuario(s),
       bloqueEquipo(s),
       bloqueMedidor(s),
+      bloqueEnlaces(s),
       bloqueEmpresa(s),
       bloqueComercial(s),
       bloqueTarifas(s),
@@ -39,53 +41,142 @@ export function render(raiz) {
  */
 function bloqueEquipo(s) {
   const equipo = s.config.equipo ?? [];
+  const sucursales = s.config.sucursales ?? [];
   const admins = equipo.filter((p) => p.rol === 'admin').length;
+  const asesores = asesoresDe(equipo).length;
 
-  const lista = el('div', { class: 'stack stack-2' });
-
-  const pintar = () => {
-    lista.replaceChildren(...(s.config.equipo ?? []).map((p, i) =>
-      el('div', { class: 'row' },
-        entrada({ valor: p.nombre, placeholder: 'Nombre y apellido',
-          onChange: (e) => {
-            const nuevo = [...s.config.equipo];
-            nuevo[i] = { ...nuevo[i], nombre: e.target.value.trim() };
-            S.guardarEquipo(nuevo);
-          } }),
-        selector({ valor: p.rol,
-          opciones: [
-            { valor: 'admin', etiqueta: 'Dirección: ve todo' },
-            { valor: 'vendedor', etiqueta: 'Asesor: ve lo suyo' },
-          ],
-          onChange: (e) => {
-            const nuevo = [...s.config.equipo];
-            nuevo[i] = { ...nuevo[i], rol: e.target.value };
-            S.guardarEquipo(nuevo);
-            window.dispatchEvent(new CustomEvent('fmp:rerender'));
-          } }),
-        el('button', {
-          class: 'btn btn--danger btn--icon', 'aria-label': `Quitar a ${p.nombre}`,
-          onclick: () => {
-            S.guardarEquipo(s.config.equipo.filter((_, j) => j !== i));
-            window.dispatchEvent(new CustomEvent('fmp:rerender'));
-          },
-        }, icono('basura', 15)))));
+  const refrescar = () => window.dispatchEvent(new CustomEvent('fmp:rerender'));
+  const cambiar = (i, campo2, valor) => {
+    const nuevo = [...s.config.equipo];
+    nuevo[i] = { ...nuevo[i], [campo2]: valor };
+    S.guardarEquipo(nuevo);
   };
-  pintar();
+
+  const lista = el('div', { class: 'stack stack-2' },
+    ...equipo.map((p, i) => el('div', { class: 'equipo-fila' },
+      entrada({ valor: p.nombre, placeholder: 'Nombre y apellido',
+        onChange: (e) => cambiar(i, 'nombre', e.target.value.trim()) }),
+      selector({ valor: p.sucursal ?? '',
+        opciones: [{ valor: '', etiqueta: 'Sin tienda' },
+          ...sucursales.map((x) => ({ valor: x, etiqueta: x }))],
+        onChange: (e) => { cambiar(i, 'sucursal', e.target.value); refrescar(); } }),
+      selector({ valor: p.rol,
+        opciones: [
+          { valor: 'admin', etiqueta: 'Dirección: ve todo' },
+          { valor: 'vendedor', etiqueta: 'Asesor: ve lo suyo' },
+        ],
+        onChange: (e) => { cambiar(i, 'rol', e.target.value); refrescar(); } }),
+      casilla({ marcado: p.vende !== false, texto: 'Vende',
+        onChange: (v) => { cambiar(i, 'vende', v); refrescar(); } }),
+      el('button', {
+        class: 'btn btn--danger btn--icon', 'aria-label': `Quitar a ${p.nombre || 'esta persona'}`,
+        onclick: () => {
+          S.guardarEquipo(s.config.equipo.filter((_, j) => j !== i));
+          refrescar();
+        },
+      }, icono('basura', 15)))));
+
+  // Cuántos asesores tiene cada tienda. Los huecos se ven solos.
+  const plantilla = plantillaPorSucursal(sucursales, equipo);
 
   return accion(
-    { iconoNombre: 'usuario', titulo: 'Equipo y quién ve el reporte de ventas',
-      pista: `${equipo.length} personas · ${admins} con acceso a todo el reporte` },
+    { iconoNombre: 'usuario', titulo: 'Equipo, tiendas y quién ve el reporte',
+      pista: `${asesores} asesores en ${sucursales.length} tiendas · ${admins} con acceso a todo` },
+
+    el('div', { class: 'grid-3 mb-5' },
+      ...plantilla.map((t) => el('div', { class: 'kpi' },
+        el('div', { class: 'kpi__label' }, t.sucursal),
+        el('div', { class: 'kpi__value' }, String(t.asesores.length)),
+        el('div', { class: 'kpi__note mt-3' },
+          t.asesores.length ? t.asesores.join(', ') : 'Sin asesores capturados')))),
+
     lista,
-    el('button', { class: 'btn btn--sm mt-4', onclick: () => {
-      S.guardarEquipo([...(s.config.equipo ?? []), { nombre: '', rol: 'vendedor' }]);
-      window.dispatchEvent(new CustomEvent('fmp:rerender'));
-    } }, icono('mas', 14), 'Agregar persona'),
+
+    el('div', { class: 'row row--tight mt-4' },
+      el('button', { class: 'btn btn--sm', onclick: () => {
+        S.guardarEquipo([...(s.config.equipo ?? []), { nombre: '', rol: 'vendedor', sucursal: sucursales[0] ?? '', vende: true }]);
+        refrescar();
+      } }, icono('mas', 14), 'Agregar persona'),
+      el('button', { class: 'btn btn--sm', onclick: () => editarSucursales(s) },
+        icono('caja', 14), 'Editar tiendas')),
+
     el('div', { class: 'mt-5' },
       nota('El asesor ve solo sus ventas; la dirección ve las de todos. Como no hay servidor ni ' +
            'contraseñas, esto separa la información pero no la protege: quien abra el navegador de otra ' +
            'persona ve lo de esa persona. El control real llega con las cuentas de la fase 2.',
            'warn', 'alerta')));
+}
+
+function editarSucursales(s) {
+  const lista = [...(s.config.sucursales ?? [])];
+  const cont = el('div', { class: 'stack stack-2' });
+
+  const pintar = () => {
+    cont.replaceChildren(...lista.map((nombre, i) => el('div', { class: 'row row--tight' },
+      entrada({ valor: nombre, placeholder: 'Nombre de la tienda', style: 'flex:1',
+        onInput: (e) => { lista[i] = e.target.value; } }),
+      el('button', {
+        class: 'btn btn--danger btn--icon', 'aria-label': 'Quitar la tienda',
+        onclick: () => { lista.splice(i, 1); pintar(); },
+      }, icono('basura', 15)))));
+  };
+  pintar();
+
+  abrirModal({ titulo: 'Tiendas', subtitulo: 'Cada asesor pertenece a una, y el reporte compara entre ellas.' },
+    el('div', {}, cont,
+      el('button', { class: 'btn btn--sm mt-4', onclick: () => { lista.push(''); pintar(); } },
+        icono('mas', 14), 'Agregar tienda'),
+      el('p', { class: 'tiny mt-4' },
+        'Si cambias el nombre de una tienda, las ventas ya registradas conservan el nombre viejo. ' +
+        'Conviene dejarlo definido antes de empezar a capturar el mes.')),
+    [el('button', { class: 'btn', onclick: cerrarModal }, 'Cancelar'),
+     el('button', { class: 'btn btn--primary', onclick: () => {
+       S.guardarSucursales(lista);
+       cerrarModal();
+       avisar('Tiendas actualizadas');
+       window.dispatchEvent(new CustomEvent('fmp:rerender'));
+     } }, 'Guardar')]);
+}
+
+// --------------------------------------------------------------------------- enlaces
+
+/**
+ * El enlace que el equipo abre en el teléfono. Se guarda aquí porque
+ * preguntarlo por WhatsApp cada vez que entra alguien nuevo no escala.
+ */
+function bloqueEnlaces(s) {
+  const base = s.config.empresa.urlApp || location.origin + location.pathname.replace(/index\.html$/, '');
+
+  const enlace = (etiqueta, url, pista) => el('div', { class: 'card card--flat' },
+    el('div', { class: 'row' },
+      el('div', { style: 'flex:1;min-width:0' },
+        el('div', { class: 'small', style: 'font-weight:600' }, etiqueta),
+        el('div', { class: 'tiny truncate' }, url),
+        el('div', { class: 'tiny mt-3' }, pista)),
+      el('button', { class: 'btn btn--sm', onclick: async () => {
+        try { await navigator.clipboard.writeText(url); avisar('Enlace copiado'); }
+        catch { avisar('Copia el enlace a mano desde la barra del navegador.', 'err'); }
+      } }, icono('copiar', 14), 'Copiar')));
+
+  return accion(
+    { iconoNombre: 'globo', titulo: 'Enlaces para el equipo',
+      pista: 'Lo que se manda por WhatsApp a quien entra nuevo' },
+
+    campo({ etiqueta: 'Dirección donde vive la aplicación',
+            pista: 'Cámbiala si se publica en un dominio propio' },
+      entrada({ valor: s.config.empresa.urlApp ?? '', placeholder: base,
+        onChange: guardarEn('empresa.urlApp') })),
+
+    el('div', { class: 'stack stack-2 mt-4' },
+      enlace('Aplicación completa', base,
+        'Para la computadora de la oficina: cotizar, catálogo, reporte y ajustes.'),
+      enlace('Medidor para el teléfono', `${base}#/medidor`,
+        'Para quien mide en obra. Conviene agregarlo a la pantalla de inicio del teléfono.')),
+
+    el('div', { class: 'mt-5' },
+      nota('En el iPhone: abre el enlace en Safari, toca Compartir y elige "Agregar a inicio". ' +
+           'Queda como una aplicación más, a pantalla completa y sin barra del navegador. ' +
+           'En Android es el menú de tres puntos, "Agregar a pantalla principal".', '', 'info')));
 }
 
 // --------------------------------------------------------------------------- medidor de obra

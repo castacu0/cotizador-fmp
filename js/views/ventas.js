@@ -7,8 +7,8 @@ import { el, fmtMXN, fmtNum, fmtPct, fmtFechaCorta } from '../format.js';
 import * as S from '../state.js';
 import { icono, desplegable, selector, vacio, nota, descargarTexto } from '../ui.js';
 import { nombreCategoria, resumenVentas, compararMes, mesesConVentas,
-         etiquetaMes, mesActual, totalVenta, anticipoEsperado, estaCobrada,
-         ventasVisibles, esAdmin } from '../ventas.js';
+         etiquetaMes, mesActual, totalVenta, anticipoEsperado,
+         ESTADOS, estadoVenta, ventasVisibles, esAdmin } from '../ventas.js';
 
 let mesElegido = null;
 
@@ -47,6 +47,8 @@ export function render(raiz) {
             icono('mas', 15), 'Registrar una venta'))
       : el('div', { class: 'stack stack-6' },
           tarjetasKPI(r, comp),
+          seccionEmbudo(r),
+          admin ? seccionSucursales(r) : null,
           seccionVendedores(r, admin),
           seccionMezcla(r),
           seccionLineas(r),
@@ -104,6 +106,72 @@ function kpi(k, v, n, tinte = '') {
     el('div', { class: 'kpi__note mt-3' }, n));
 }
 
+// --------------------------------------------------------------------------- embudo
+
+const TONO_CSS = {
+  warn: 'var(--warn)', ok: 'var(--ok)', cerrado: 'var(--cerrado)', muerto: 'var(--muerto)',
+};
+
+/**
+ * El semáforo de la dirección: cuánto del mes está solo cotizado, cuánto ya
+ * arrancó con anticipo y cuánto está liquidado. Cotizar no es vender, y esta
+ * barra es donde se ve la diferencia sin explicarla.
+ */
+function seccionEmbudo(r) {
+  const orden = ['cotizada', 'anticipada', 'liquidada', 'cancelada'];
+  const cotizado = orden.reduce((a, k) => a + (r.estados[k] ?? 0), 0);
+  if (!(cotizado > 0)) return el('span', {});
+
+  return el('section', {},
+    el('div', { class: 'section__head' },
+      el('div', { class: 'grow' },
+        el('h2', { class: 'title' }, 'De cotizado a cobrado'),
+        el('p', { class: 'small muted mt-3' },
+          'Una cotización enviada está en ámbar hasta que entra el anticipo. Verde quiere decir que el ' +
+          'proyecto arrancó; el azul, que ya no debe nada.'))),
+
+    el('div', { class: 'card card--pad-lg' },
+      el('div', { class: 'semaforo' },
+        ...orden.filter((k) => r.estados[k] > 0).map((k) => el('div', {
+          class: 'semaforo__seg',
+          title: `${ESTADOS[k].nombre} · ${fmtMXN(r.estados[k], 0)}`,
+          style: `flex:${r.estados[k]};background:${TONO_CSS[ESTADOS[k].tono]}`,
+        }))),
+
+      el('div', { class: 'grid-4 mt-5' },
+        ...orden.map((k) => el('div', {},
+          el('div', { class: 'row row--tight' },
+            el('span', { class: 'leyenda__punto', style: `background:${TONO_CSS[ESTADOS[k].tono]};margin-top:0` }),
+            el('span', { class: 'small' }, ESTADOS[k].nombre)),
+          el('div', { class: 'num mt-3', style: 'font-size:18px;font-weight:600' }, fmtMXN(r.estados[k] ?? 0, 0)),
+          el('div', { class: 'tiny' }, fmtPct(cotizado ? (r.estados[k] ?? 0) / cotizado : 0, 0) + ' de lo cotizado'))))));
+}
+
+// --------------------------------------------------------------------------- por tienda
+
+function seccionSucursales(r) {
+  if (r.sucursales.length < 2) return el('span', {});
+
+  return el('section', {},
+    el('div', { class: 'section__head' },
+      el('div', { class: 'grow' },
+        el('h2', { class: 'title' }, 'Cómo va cada tienda'),
+        el('p', { class: 'small muted mt-3' },
+          'Santa Fe, Pedregal y la tercera, con sus asesores. Se editan en Ajustes.'))),
+
+    el('div', { class: 'grid-3' },
+      ...r.sucursales.map((s, i) => el('div', { class: 'kpi' },
+        el('div', { class: 'kpi__label' }, s.sucursal),
+        el('div', { class: 'kpi__value' }, fmtMXN(s.total, 0)),
+        el('div', { class: 'margen-bar mt-3' },
+          el('div', { class: 'margen-bar__fill',
+            style: `width:${Math.max(2, s.participacion * 100)}%;background:${tono(i)}` })),
+        el('div', { class: 'kpi__note mt-3' },
+          `${fmtPct(s.participacion, 1)} del mes · ${s.cuenta} ${s.cuenta === 1 ? 'venta' : 'ventas'} · ` +
+          `${s.asesores} ${s.asesores === 1 ? 'asesor' : 'asesores'}`),
+        el('div', { class: 'tiny mt-3' }, `Cobrado ${fmtMXN(s.cobrado, 0)}`)))));
+}
+
 // --------------------------------------------------------------------------- por vendedor
 
 function seccionVendedores(r, admin) {
@@ -148,7 +216,7 @@ function filaVendedor(v, i, r) {
       el('table', { class: 'tabla', style: 'min-width:520px' },
         el('thead', {}, el('tr', {},
           el('th', {}, 'Fecha'), el('th', {}, 'Cliente'), el('th', {}, 'Obra'),
-          el('th', { class: 'r' }, 'Importe'), el('th', { class: 'r' }, 'Anticipo'))),
+          el('th', { class: 'r' }, 'Importe'), el('th', { class: 'r' }, 'Estado'))),
         el('tbody', {},
           ...r.ventas.filter((x) => (x.vendedor || 'Sin asignar') === v.vendedor).map((x) =>
             el('tr', {},
@@ -156,9 +224,20 @@ function filaVendedor(v, i, r) {
               el('td', {}, x.cliente || '—'),
               el('td', {}, x.obra || '—'),
               el('td', { class: 'r' }, fmtMXN(totalVenta(x), 0)),
-              el('td', { class: 'r' },
-                el('span', { class: `pill pill--sm ${estaCobrada(x) ? 'pill--ok' : 'pill--warn'}` },
-                  estaCobrada(x) ? 'Cobrado' : `Falta ${fmtMXN(Math.max(0, anticipoEsperado(x) - Number(x.pagado || 0)), 0)}`))))))));
+              el('td', { class: 'r' }, pastillaEstado(x))))))));
+}
+
+/** La pastilla de estado, con lo que falta cuando todavía falta algo. */
+function pastillaEstado(v) {
+  const clave = estadoVenta(v);
+  const est = ESTADOS[clave];
+  const pagado = Number(v.pagado) || 0;
+  const falta = clave === 'cotizada'
+    ? Math.max(0, anticipoEsperado(v) - pagado)
+    : clave === 'anticipada' ? Math.max(0, totalVenta(v) - pagado) : 0;
+
+  return el('span', { class: `pill pill--sm pill--${est.tono}`, title: est.nota },
+    falta > 0 ? `${est.corto} · falta ${fmtMXN(falta, 0)}` : est.nombre);
 }
 
 // --------------------------------------------------------------------------- mezcla
@@ -218,21 +297,32 @@ function seccionLineas(r) {
 // --------------------------------------------------------------------------- detalle
 
 function seccionDetalle(r, admin) {
-  return desplegable({ titulo: `Todas las ventas de ${etiquetaMes(r.mes)} (${r.cuenta})` },
+  // Las canceladas van al final y en gris: se ven, pero no compiten con el mes.
+  const filas = [...r.ventas, ...r.canceladas];
+
+  return desplegable({
+    titulo: `Todas las cotizaciones de ${etiquetaMes(r.mes)} (${filas.length})`,
+  },
     el('div', { class: 'tabla-wrap' },
       el('table', { class: 'tabla' },
         el('thead', {}, el('tr', {},
           el('th', {}, 'Fecha'),
           admin ? el('th', {}, 'Asesor') : null,
+          admin ? el('th', {}, 'Tienda') : null,
           el('th', {}, 'Cliente'), el('th', {}, 'Obra'),
-          el('th', { class: 'r' }, 'Importe'), el('th', { class: 'r' }, 'Pagado'), el('th', {}, ''))),
-        el('tbody', {}, ...r.ventas.map((v) => el('tr', {},
+          el('th', { class: 'r' }, 'Importe'), el('th', { class: 'r' }, 'Pagado'),
+          el('th', {}, 'Estado'), el('th', {}, ''))),
+        el('tbody', {}, ...filas.map((v) => el('tr', {
+          style: estadoVenta(v) === 'cancelada' ? 'opacity:.55' : null,
+        },
           el('td', {}, fmtFechaCorta(v.fecha)),
           admin ? el('td', {}, v.vendedor || '—') : null,
+          admin ? el('td', {}, v.sucursal || '—') : null,
           el('td', {}, v.cliente || '—'),
           el('td', {}, v.obra || '—'),
           el('td', { class: 'r' }, fmtMXN(totalVenta(v), 0)),
           el('td', { class: 'r' }, fmtMXN(Number(v.pagado) || 0, 0)),
+          el('td', {}, pastillaEstado(v)),
           el('td', {},
             el('button', { class: 'btn btn--ghost btn--sm',
               onclick: () => { location.hash = `#/registrar?id=${v.id}`; } }, 'Abrir'))))))));
@@ -241,18 +331,21 @@ function seccionDetalle(r, admin) {
 // --------------------------------------------------------------------------- csv
 
 function exportarCSV(r) {
-  const filas = [['Fecha', 'Asesor', 'Cliente', 'Obra', 'Apartado', 'Proveedor', 'Linea', 'Color',
-                  'Familia', 'Cantidad', 'Unidad', 'PrecioUnitario', 'Importe', 'PagadoVenta']];
+  // Estas son las columnas que van a la hoja de cálculo compartida en la fase 2.
+  const filas = [['Fecha', 'Asesor', 'Tienda', 'Cliente', 'Obra', 'Apartado', 'Proveedor',
+                  'Linea', 'Color', 'Familia', 'Cantidad', 'Unidad', 'PrecioUnitario',
+                  'Importe', 'PagadoVenta', 'Estado']];
 
-  for (const v of r.ventas) {
+  for (const v of [...r.ventas, ...r.canceladas]) {
     for (const l of v.lineas ?? []) {
       filas.push([
-        v.fecha, v.vendedor, v.cliente, v.obra,
+        v.fecha, v.vendedor, v.sucursal, v.cliente, v.obra,
         l.apartado, l.proveedor, l.linea, l.color,
         nombreCategoria(l.categoria),
         l.cantidad, l.unidad, l.precioUnit,
         (Number(l.cantidad) || 0) * (Number(l.precioUnit) || 0),
         v.pagado ?? 0,
+        ESTADOS[estadoVenta(v)].nombre,
       ]);
     }
   }

@@ -8,8 +8,9 @@ import * as S from '../state.js';
 import { icono, accion, campo, entrada, selector, casilla, abrirModal, cerrarModal,
          confirmar, avisar, vacio, nota } from '../ui.js';
 import { CATEGORIAS_VENTA, ventaVacia, lineaVaciaVenta, importeLinea,
-         totalVenta, anticipoEsperado, estaCobrada, mesDe, etiquetaMes,
-         ventasVisibles, esAdmin, PASOS_PROYECTO, avanceProyecto } from '../ventas.js';
+         totalVenta, anticipoEsperado, mesDe, etiquetaMes, ESTADOS, estadoVenta,
+         ventasVisibles, esAdmin, asesoresDe, sucursalDe,
+         PASOS_PROYECTO, avanceProyecto } from '../ventas.js';
 
 export function render(raiz) {
   const s = S.obtener();
@@ -55,21 +56,24 @@ export function render(raiz) {
 function tarjetaVenta(v, admin) {
   const total = totalVenta(v);
   const av = avanceProyecto(v);
-  const cobrada = estaCobrada(v);
+  const clave = estadoVenta(v);
+  const est = ESTADOS[clave];
 
-  return el('article', { class: 'linea' },
+  return el('article', { class: `linea linea--estado linea--${est.tono}` },
     el('div', { class: 'linea__head' },
       el('div', { style: 'flex:1;min-width:0' },
         el('div', { class: 'row row--tight' },
           el('strong', {}, v.cliente || 'Sin cliente'),
-          el('span', { class: `pill pill--sm ${cobrada ? 'pill--ok' : 'pill--warn'}` },
-            cobrada ? 'Anticipo cobrado' : 'Falta anticipo'),
-          admin && v.vendedor ? el('span', { class: 'pill pill--sm pill--outline' }, v.vendedor) : null),
+          el('span', { class: `pill pill--sm pill--${est.tono}`, title: est.nota }, est.nombre),
+          admin && v.vendedor ? el('span', { class: 'pill pill--sm pill--outline' }, v.vendedor) : null,
+          v.sucursal ? el('span', { class: 'pill pill--sm pill--outline' }, v.sucursal) : null),
         el('p', { class: 'small muted mt-3' },
           `${v.obra || 'Sin obra'} · ${fmtFechaCorta(v.fecha)} · ${etiquetaMes(mesDe(v.fecha))} · ` +
           `${(v.lineas ?? []).length} ${(v.lineas ?? []).length === 1 ? 'partida' : 'partidas'}`),
         el('p', { class: 'tiny mt-3' },
-          `Carpeta del proyecto: ${av.listos} de ${av.total} documentos`)),
+          av.puedePedirMaterial
+            ? `Orden de compra lista: Aarón ya puede pedir el material · ${av.listos} de ${av.total} documentos`
+            : `Carpeta del proyecto: ${av.listos} de ${av.total} documentos`)),
       el('div', { class: 'linea__total' },
         el('div', { class: 'num', style: 'font-size:17px;font-weight:600' }, fmtMXN(total, 0)),
         el('div', { class: 'tiny' }, `pagado ${fmtMXN(Number(v.pagado) || 0, 0)}`)),
@@ -97,12 +101,24 @@ function abrirEditor(existente) {
 
   const v = existente
     ? structuredClone(existente)
-    : ventaVacia(usuario);
+    : ventaVacia(usuario, sucursalDe(usuario, s.config.equipo));
   if (!v.pasos) v.pasos = {};
 
   const totales = el('div', { class: 'desglose' });
   const cuerpoLineas = el('div', { class: 'stack stack-3' });
+  const semaforo = el('div', { class: 'mb-4' });
   const btnGuardar = el('button', { class: 'btn btn--primary' }, existente ? 'Guardar cambios' : 'Registrar venta');
+
+  // El estado se recalcula al vuelo mientras se captura el pago: la dirección
+  // quiere ver el color cambiar cuando entra el anticipo, no al recargar.
+  const pintarEstado = () => {
+    const est = ESTADOS[estadoVenta(v)];
+    semaforo.replaceChildren(
+      el('div', { class: `nota nota--${est.tono === 'muerto' ? '' : est.tono}` },
+        icono(est.tono === 'ok' || est.tono === 'cerrado' ? 'check' : 'info', 16),
+        el('span', {},
+          el('strong', {}, est.nombre), '. ', est.nota)));
+  };
 
   const pintarTotales = () => {
     const total = totalVenta(v);
@@ -112,8 +128,9 @@ function abrirEditor(existente) {
       fila('Total de la venta', `${v.lineas.length} ${v.lineas.length === 1 ? 'partida' : 'partidas'}`, fmtMXN(total)),
       fila('Anticipo esperado', `${Math.round((Number(v.anticipoPct) || 0) * 100)}% para arrancar`, fmtMXN(esperado)),
       fila('Registrado como pagado', v.comprobante ? `Comprobante: ${v.comprobante}` : 'Sin comprobante', fmtMXN(pagado)),
-      fila(pagado >= esperado - 0.5 ? 'Listo para arrancar' : 'Falta para arrancar', '',
-        fmtMXN(Math.max(0, esperado - pagado)), true));
+      fila(pagado >= esperado - 0.5 ? 'Falta por liquidar' : 'Falta para arrancar', '',
+        fmtMXN(Math.max(0, (pagado >= esperado - 0.5 ? total : esperado) - pagado)), true));
+    pintarEstado();
     btnGuardar.disabled = total <= 0;
   };
 
@@ -126,19 +143,38 @@ function abrirEditor(existente) {
 
   const opcionesVendedor = [
     ...new Set([
-      ...s.config.equipo.map((p) => p.nombre),
+      ...asesoresDe(s.config.equipo).map((p) => p.nombre),
       ...(s.ventas ?? []).map((x) => x.vendedor).filter(Boolean),
       usuario,
     ].filter(Boolean)),
   ].map((n) => ({ valor: n, etiqueta: n }));
+
+  const campoSucursal = campo({ etiqueta: 'Tienda', pista: 'Se hereda del asesor y se puede cambiar' },
+    selector({
+      valor: v.sucursal,
+      opciones: [{ valor: '', etiqueta: 'Sin asignar' },
+        ...(s.config.sucursales ?? []).map((x) => ({ valor: x, etiqueta: x }))],
+      onChange: (e) => { v.sucursal = e.target.value; },
+    }));
 
   const cabecera = el('div', { class: 'grid-2' },
     campo({ etiqueta: 'Fecha de la venta' },
       entrada({ valor: v.fecha, tipo: 'date', onInput: (e) => { v.fecha = e.target.value; } })),
     campo({ etiqueta: 'Asesor', pista: admin ? 'Puedes registrar a nombre de otro' : 'Se registra a tu nombre' },
       admin && opcionesVendedor.length
-        ? selector({ valor: v.vendedor, opciones: opcionesVendedor, onChange: (e) => { v.vendedor = e.target.value; } })
+        ? selector({ valor: v.vendedor, opciones: opcionesVendedor,
+            onChange: (e) => {
+              v.vendedor = e.target.value;
+              // Al cambiar de asesor, la tienda lo sigue si no se fijó a mano.
+              const suc = sucursalDe(v.vendedor, s.config.equipo);
+              if (suc) {
+                v.sucursal = suc;
+                const sel = campoSucursal.querySelector('select');
+                if (sel) sel.value = suc;
+              }
+            } })
         : entrada({ valor: v.vendedor || usuario, onInput: (e) => { v.vendedor = e.target.value; } })),
+    campoSucursal,
     campo({ etiqueta: 'Cliente' },
       entrada({ valor: v.cliente, placeholder: 'Nombre de quien paga', onInput: (e) => { v.cliente = e.target.value; } })),
     campo({ etiqueta: 'Obra' },
@@ -155,6 +191,15 @@ function abrirEditor(existente) {
       entrada({ valor: v.comprobante, placeholder: 'Transferencia 12 ago, ref 4471',
         onInput: (e) => { v.comprobante = e.target.value; pintarTotales(); } })));
 
+  const avisoCompra = el('div', { class: 'mt-4' });
+  const pintarCompra = () => {
+    avisoCompra.replaceChildren(
+      avanceProyecto(v).puedePedirMaterial
+        ? nota('Con la orden de compra lista, Aarón ya puede pedir y suministrar el material.', 'ok', 'check')
+        : nota('El material se pide hasta que exista la orden de compra. Antes de eso solo se cotiza.', '', 'info'));
+  };
+  pintarCompra();
+
   const carpeta = accion({ iconoNombre: 'caja', titulo: 'Carpeta del proyecto en Drive',
                            pista: 'Los documentos que tienen que existir antes de comprar material' },
     campo({ etiqueta: 'Enlace de la carpeta' },
@@ -165,8 +210,16 @@ function abrirEditor(existente) {
         marcado: !!v.pasos[p.clave],
         texto: `${p.nombre} · ${p.responsable}`,
         pista: p.nota,
-        onChange: (val) => { v.pasos[p.clave] = val; },
-      }))));
+        onChange: (val) => { v.pasos[p.clave] = val; pintarCompra(); },
+      }))),
+    avisoCompra);
+
+  const cancelar = casilla({
+    marcado: !!v.cancelada,
+    texto: 'La cotización no se concretó',
+    pista: 'Se marca en gris y deja de contar para el mes y para el asesor. No se borra: sirve para saber cuánto se cotizó y no se cerró.',
+    onChange: (val) => { v.cancelada = val; pintarTotales(); },
+  });
 
   btnGuardar.onclick = () => {
     v.lineas = v.lineas.filter((l) => importeLinea(l) > 0);
@@ -197,6 +250,8 @@ function abrirEditor(existente) {
         cuerpoLineas),
       cobro,
       totales,
+      semaforo,
+      cancelar,
       carpeta,
       campo({ etiqueta: 'Notas' },
         el('textarea', { class: 'textarea', rows: 2,

@@ -22,6 +22,9 @@ export const CONFIG_DEFAULT = {
     web: 'www.ejemplo.mx',
     fundacion: '1987',
     logoDataUrl: null,
+    // Dónde vive la aplicación publicada. Se usa para armar el enlace que
+    // el equipo abre en el teléfono. Se cambia si se compra dominio propio.
+    urlApp: 'https://castacu0.github.io/cotizador-fmp/',
   },
   fiscal: { iva: 0.16, moneda: 'MXN', tipoCambio: 18.5 },
   comercial: {
@@ -31,12 +34,15 @@ export const CONFIG_DEFAULT = {
     garantiaAnios: 10,
   },
   logistica: { diasTransito: 35, diasAduana: 7, diasInstalacionM2: 25 },
+  // Tres tiendas, dos asesores en cada una. Se editan en Ajustes.
+  sucursales: ['Santa Fe', 'Pedregal', 'Tercera tienda'],
   // Quién es quién. El rol decide qué ve cada persona en el reporte de ventas.
   // Es control por confianza, no seguridad: ver ventas.js > permisos.
+  // La dirección también vende: Fernando y Sebastián son los dos asesores principales.
   equipo: [
-    { nombre: 'Fernando', rol: 'admin' },
-    { nombre: 'Melissa', rol: 'admin' },
-    { nombre: 'Sebastián', rol: 'admin' },
+    { nombre: 'Fernando', rol: 'admin', sucursal: 'Santa Fe', vende: true },
+    { nombre: 'Sebastián', rol: 'admin', sucursal: 'Pedregal', vende: true },
+    { nombre: 'Melissa', rol: 'admin', sucursal: '', vende: false },
   ],
   // Supuestos del medidor de obra. Se reemplazan en cuanto entren las listas
   // de precios reales de los 32 proveedores.
@@ -47,6 +53,9 @@ export const CONFIG_DEFAULT = {
     instalacionM2: 0,
     m2PorCajaPromedio: 2.2,
     tecladoApp: true,
+    // Con qué se mide en obra. Sebastián trae distanciómetro; la cinta queda
+    // como alternativa cuando el láser no alcanza o no hay pared de rebote.
+    metodo: 'laser',
   },
   // Supuestos del tablero de ahorro. Se ajustan con los números reales de la empresa.
   ahorro: {
@@ -147,6 +156,19 @@ export function cargar() {
       config: fusionar(CONFIG_DEFAULT, guardado.config),
       cotizacion: guardado.cotizacion ?? cotizacionVacia(),
     };
+
+    // El equipo guardado antes de que existieran las tiendas no trae sucursal
+    // ni si la persona vende. Se completa desde el valor por omisión, buscando
+    // por nombre. Lo que ya esté capturado siempre gana.
+    estado.config.equipo = (estado.config.equipo ?? []).map((p) => {
+      const base = CONFIG_DEFAULT.equipo.find(
+        (x) => x.nombre.toLowerCase() === String(p.nombre ?? '').trim().toLowerCase());
+      return {
+        ...p,
+        sucursal: p.sucursal ?? base?.sucursal ?? '',
+        vende: p.vende ?? base?.vende ?? true,
+      };
+    });
 
     // Si sigue con el catálogo de demostración y la semilla cambió, se actualiza.
     // Un catálogo real importado nunca se sobrescribe.
@@ -526,6 +548,12 @@ export function eliminarVenta(id) {
 export function guardarEquipo(equipo) {
   actualizar((s) => { s.config.equipo = equipo; });
   registrar('Cambio de equipo', `${equipo.length} personas`);
+}
+
+export function guardarSucursales(sucursales) {
+  const limpias = sucursales.map((s) => String(s).trim()).filter(Boolean);
+  actualizar((s) => { s.config.sucursales = limpias; });
+  registrar('Cambio de sucursales', limpias.join(', ') || 'ninguna');
 }
 
 export function actualizarConfig(ruta, valor) {

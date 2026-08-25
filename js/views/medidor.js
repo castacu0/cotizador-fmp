@@ -11,6 +11,7 @@ import { icono, accion, campo, entrada, selector, casilla, abrirModal, cerrarMod
 import { CATEGORIAS } from '../pricing.js';
 import { medicionVacia, cuartoVacio, calcularCuarto, calcularMedicion, estimarMedicion,
          parsearNota, CUARTOS_SUGERIDOS } from '../medidas.js';
+import * as Fotos from '../fotos.js';
 
 // Campo de medida enfocado. El teclado de la aplicación escribe aquí.
 let activo = null;
@@ -131,6 +132,7 @@ function pantallaObra(m) {
         el('button', { class: 'btn btn--ghost btn--sm', onclick: () => { S.abrirMedicion(null); redibujar(); } },
           icono('chevron', 15, 1.8), 'Todas las obras'),
         el('span', { class: 'spacer' }),
+        controlMetodo(m),
         el('button', { class: 'btn btn--sm', onclick: () => abrirEstimado(m) }, icono('barras', 15), 'Estimado'),
         el('button', { class: 'btn btn--sm btn--primary', onclick: () => abrirPasarACotizador(m) },
           icono('pdf', 15), 'Cotizar')),
@@ -151,11 +153,7 @@ function pantallaObra(m) {
 
     listaCuartos(m),
 
-    el('div', { class: 'row mt-5' },
-      el('button', { class: 'btn btn--block', onclick: () => agregarCuarto(m, 'area') },
-        icono('mas', 15), 'Agregar cuarto'),
-      el('button', { class: 'btn btn--block', onclick: () => agregarCuarto(m, 'escalera') },
-        icono('capas', 15), 'Agregar escalera')),
+    barraAgregar(m),
 
     el('div', { class: 'mt-5' },
       accion({ iconoNombre: 'info', titulo: 'Cómo se escriben las medidas',
@@ -169,6 +167,61 @@ function pantallaObra(m) {
             'Si pegas una nota con ', el('b', {}, 'Z-'), ', la aplicación la manda sola al campo correcto.')))));
 }
 
+/**
+ * Con qué se está midiendo. Sebastián trae distanciómetro y captura el área
+ * directo; con cinta se miden dos lados y se multiplican. Cambia la pista del
+ * campo y el ejemplo, no el cálculo.
+ */
+function controlMetodo(m) {
+  const actual = () => (S.medicionAbierta() ?? m).metodo ?? S.obtener().config.medidor?.metodo ?? 'laser';
+
+  const grupo = el('div', { class: 'metodo', role: 'group', 'aria-label': 'Cómo se está midiendo' });
+  for (const [clave, etiqueta, titulo] of [
+    ['laser', 'Láser', 'Distanciómetro: se captura el área directa'],
+    ['cinta', 'Cinta', 'Cinta métrica: se miden dos lados y se multiplican con ×'],
+  ]) {
+    grupo.append(el('button', {
+      type: 'button', class: 'metodo__btn', title: titulo,
+      'aria-pressed': String(actual() === clave),
+      onclick: () => { S.actualizarMedicion(m.id, { metodo: clave }); redibujar(); },
+    }, etiqueta));
+  }
+  return grupo;
+}
+
+const metodoDe = (m) => m.metodo ?? S.obtener().config.medidor?.metodo ?? 'laser';
+
+// Lo que el equipo agrega una y otra vez. Un toque y queda numerado solo.
+const RAPIDOS = [
+  { base: 'Recámara', tipo: 'area' },
+  { base: 'Baño', tipo: 'area' },
+  { base: 'Cocina', tipo: 'area' },
+  { base: 'Sala', tipo: 'area' },
+  { base: 'Comedor', tipo: 'area' },
+  { base: 'Pasillo', tipo: 'area' },
+  { base: 'Escalera', tipo: 'escalera' },
+  { base: 'Patio', tipo: 'area' },
+  { base: 'Cuarto', tipo: 'area' },
+];
+
+/** "Recámara" dos veces da "Recámara 1" y "Recámara 2", sin teclear. */
+function nombreSiguiente(m, base) {
+  const previos = m.cuartos.filter((c) => new RegExp(`^${base}(\\s|$)`, 'i').test(c.nombre ?? ''));
+  if (!previos.length) return base;
+  return `${base} ${previos.length + 1}`;
+}
+
+function barraAgregar(m) {
+  return el('div', { class: 'agregar' },
+    el('span', { class: 'agregar__etq' }, 'Agregar'),
+    el('div', { class: 'agregar__chips' },
+      ...RAPIDOS.map((r) => el('button', {
+        class: 'agregar__chip', type: 'button',
+        title: r.tipo === 'escalera' ? 'Escalera: se captura por escalón' : `Agregar ${r.base.toLowerCase()}`,
+        onclick: () => agregarCuarto(m, r.tipo, nombreSiguiente(m, r.base)),
+      }, icono('mas', 13), r.base))));
+}
+
 function listaCuartos(m) {
   return el('div', { class: 'stack stack-3 js-cuartos' },
     ...(m.cuartos.length
@@ -178,9 +231,8 @@ function listaCuartos(m) {
       ...CUARTOS_SUGERIDOS.map((n) => el('option', { value: n }))));
 }
 
-function agregarCuarto(m, tipo) {
-  const n = m.cuartos.length + 1;
-  const c = cuartoVacio(tipo === 'escalera' ? 'Escalera' : `Cuarto ${n}`, tipo);
+function agregarCuarto(m, tipo, nombre) {
+  const c = cuartoVacio(nombre ?? (tipo === 'escalera' ? 'Escalera' : `Cuarto ${m.cuartos.length + 1}`), tipo);
   S.agregarCuarto(m.id, c);
   redibujar();
   setTimeout(() => {
@@ -248,7 +300,10 @@ function tarjetaCuarto(m, c, indice) {
         el('p', { class: 'tiny' },
           'Cada escalón consume huella + peralte de material. El zoclo de escalera corre por el filo.'))
     : el('div', { class: 'grid-2' },
-        el('div', {}, campoMedida('areas', 'Área, en m²', '16.45,3.81,2.29'), detalleArea),
+        el('div', {},
+          campoMedida('areas', 'Área, en m²',
+            metodoDe(m) === 'cinta' ? '4*5,2.4*1.8' : '16.45,3.81,2.29'),
+          detalleArea),
         el('div', {}, campoMedida('zoclo', 'Zoclo, en metros lineales', '1.91,.88,1.27'), detalleZoclo));
 
   const tarjeta = el('article', { class: 'cuarto' },
@@ -270,14 +325,86 @@ function tarjetaCuarto(m, c, indice) {
               textoOk: 'Quitar', peligro: true });
             if (!ok) return;
           }
+          await Fotos.borrarFotosDeCuarto(c.id).catch(() => {});
           S.eliminarCuarto(m.id, c.id);
           redibujar();
         },
       }, icono('basura', 15))),
-    el('div', { class: 'cuarto__body' }, cuerpo));
+    el('div', { class: 'cuarto__body' }, cuerpo, tiraDeFotos(m, c)));
 
   pintar();
   return tarjeta;
+}
+
+// --------------------------------------------------------------------------- fotos
+
+/**
+ * Fotos del cuarto. Opcionales por diseño: quien mide ya trae prisa, y obligar
+ * a fotografiar cada cuarto haría que dejaran de usar la herramienta.
+ */
+function tiraDeFotos(m, c) {
+  if (!Fotos.hayAlmacen()) return null;
+
+  const galeria = el('div', { class: 'fotos__tira' });
+  const etiqueta = el('span', { class: 'tiny' }, 'Sin fotos');
+  const urls = [];
+
+  const pintar = async () => {
+    for (const u of urls.splice(0)) URL.revokeObjectURL(u);
+    const fotos = await Fotos.fotosDeCuarto(c.id).catch(() => []);
+
+    galeria.replaceChildren(...fotos.map((f) => {
+      const url = Fotos.urlDeFoto(f);
+      urls.push(url);
+      return el('figure', { class: 'foto' },
+        el('img', { src: url, alt: `Foto de ${c.nombre || 'el cuarto'}`, loading: 'lazy' }),
+        el('button', {
+          class: 'foto__quitar', 'aria-label': 'Quitar la foto', title: 'Quitar la foto',
+          onclick: async () => {
+            const ok = await confirmar({ titulo: 'Quitar la foto',
+              mensaje: 'Se borra de esta computadora y no se puede recuperar.',
+              textoOk: 'Quitar', peligro: true });
+            if (!ok) return;
+            await Fotos.borrarFoto(f.id);
+            pintar();
+          },
+        }, icono('cerrar', 12)));
+    }));
+
+    etiqueta.textContent = fotos.length
+      ? `${fotos.length} ${fotos.length === 1 ? 'foto' : 'fotos'} · ${Fotos.pesoLegible(fotos.reduce((a, f) => a + f.bytes, 0))}`
+      : 'Sin fotos';
+  };
+
+  // capture="environment" abre la cámara trasera directo en el teléfono.
+  // En computadora el mismo botón sirve para elegir un archivo.
+  const archivo = el('input', {
+    type: 'file', accept: 'image/*', multiple: true, capture: 'environment',
+    style: 'display:none',
+    onchange: async (e) => {
+      const lista = [...e.target.files];
+      e.target.value = '';
+      if (!lista.length) return;
+      try {
+        for (const f of lista) await Fotos.guardarFoto(f, { medicionId: m.id, cuartoId: c.id });
+        avisar(`${lista.length} ${lista.length === 1 ? 'foto guardada' : 'fotos guardadas'}`);
+        pintar();
+      } catch (err) {
+        console.error(err);
+        avisar('No se pudo guardar la foto. Revisa el espacio del navegador.', 'err');
+      }
+    },
+  });
+
+  pintar();
+
+  return el('div', { class: 'fotos mt-4' },
+    el('div', { class: 'row row--tight' },
+      el('button', { class: 'btn btn--sm', onclick: () => archivo.click() },
+        icono('capas', 14), 'Foto'),
+      etiqueta,
+      archivo),
+    galeria);
 }
 
 function campoEscalera(m, c, clave, etiqueta, marcador, pintar) {

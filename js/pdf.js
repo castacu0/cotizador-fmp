@@ -575,7 +575,16 @@ function bloqueTotales(L, totales) {
     L.y += 4.8;
   };
 
-  fila('Subtotal', fmtMXN(totales.subtotal));
+  // La dirección pidió que la instalación viniera separada: el cliente pregunta
+  // siempre cuánto es material y cuánto es mano de obra, y hasta ahora había
+  // que abrir la cotización para contestarlo.
+  const manoObra = totales.desgloseVenta?.manoObra ?? 0;
+  if (manoObra > 0) {
+    fila('Material y accesorios', fmtMXN(totales.subtotal - manoObra));
+    fila('Instalación y mano de obra', fmtMXN(manoObra));
+  }
+
+  fila('Subtotal', fmtMXN(totales.subtotal), { fuerte: manoObra > 0 });
   if (totales.descuentoGlobal > 0) {
     fila(`Descuento ${fmtNum(totales.descuentoGlobalPct * 100, 0)}%`,
       `- ${fmtMXN(totales.descuentoGlobal)}`, { color: C.oroTexto });
@@ -598,6 +607,13 @@ function bloqueTotales(L, totales) {
   tinta(doc, C.suave);
   doc.text('Todos los importes en pesos mexicanos (MXN). IVA desglosado.', A4.w - M, L.y + 2.6, { align: 'right' });
   L.y += 6;
+
+  if (manoObra > 0) {
+    doc.setFontSize(6.2);
+    doc.text('Mano de obra estimada con tarifa de referencia; se confirma al levantamiento en sitio.',
+      A4.w - M, L.y + 1.4, { align: 'right' });
+    L.y += 4.4;
+  }
 }
 
 // ---------------------------------------------------------------------------

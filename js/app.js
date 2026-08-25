@@ -207,9 +207,17 @@ function arrancarTour() {
       titulo: 'Medir en obra, con puros números',
       texto: 'Sebastián captura cuarto por cuarto sin escribir una sola letra: 16.45,3.81,2.29 son tres áreas ' +
              'que se suman, 1.86(2) es esa medida dos veces, y el renglón del zoclo va aparte. ' +
-             'El teclado de abajo es de la aplicación, no del teléfono.',
+             'El teclado de abajo es de la aplicación, no del teléfono. Arriba a la derecha se elige ' +
+             'si se está midiendo con láser o con cinta.',
       antes: () => irA('#/medidor'),
       selector: '.view header', posicion: 'abajo', espera: 300,
+    },
+    {
+      titulo: 'Cuartos de un toque, y fotos si hacen falta',
+      texto: 'Recámara, cocina, escalera, patio: cada chip agrega el cuarto ya numerado, y el bote lo quita. ' +
+             'Da igual si la casa trae tres cuartos o siete. Cada cuarto acepta fotos desde la cámara, ' +
+             'y son opcionales: nadie tiene que fotografiar para poder cotizar.',
+      selector: '.agregar', posicion: 'arriba', espera: 200,
     },
     {
       titulo: 'Todo empieza por el buscador',
@@ -271,10 +279,17 @@ function arrancarTour() {
     {
       titulo: 'El reporte mensual de ventas',
       texto: 'Qué vendió cada asesor, de qué línea y color, en qué proporción, y cuánto está cobrado. ' +
-             'Una cotización enviada no entra: entra la venta con su anticipo. ' +
+             'Se compara tienda contra tienda: Santa Fe, Pedregal y la tercera. ' +
              'El desglose de todo el equipo lo abren Fernando, Melissa y Sebastián.',
       antes: () => irA('#/ventas'),
       selector: '.view header', posicion: 'abajo', espera: 300,
+    },
+    {
+      titulo: 'Cotizar no es vender, y el color lo dice',
+      texto: 'Ámbar mientras la cotización solo está enviada. Verde en cuanto entra el anticipo del 80%. ' +
+             'Azul cuando queda liquidada, gris si no se concretó. El color cambia en el momento en que ' +
+             'se captura el pago, y esta barra enseña cuánto del mes está en cada peldaño.',
+      selector: '.semaforo', posicion: 'abajo', espera: 200,
     },
     {
       titulo: 'El catálogo completo',

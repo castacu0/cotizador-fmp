@@ -17,8 +17,23 @@ const INCLUIDO = [
     estado: 'Activo',
   },
   {
+    icono: 'capas', titulo: 'Fotos de obra, opcionales',
+    detalle: 'Cada cuarto puede llevar fotos tomadas con la cámara del teléfono. Se reducen solas antes de guardarse, así que caben cientos sin llenar el equipo. Nunca son obligatorias: quien mide decide.',
+    estado: 'Activo',
+  },
+  {
     icono: 'barras', titulo: 'Reporte mensual de ventas',
     detalle: 'Qué vendió cada asesor, de qué familia, en qué proporción y con qué ticket. Detalle por línea y color, que es como el equipo reconoce el producto. Vendido contra cobrado, y lo que falta de anticipo por cada obra. Exporta a CSV.',
+    estado: 'Activo',
+  },
+  {
+    icono: 'reloj', titulo: 'Semáforo de la cotización',
+    detalle: 'Ámbar mientras solo está cotizada, verde cuando entró el anticipo del 80%, azul cuando quedó liquidada y gris si no se concretó. El color cambia en el momento en que se captura el pago, y el reporte enseña cuánto del mes está en cada peldaño.',
+    estado: 'Activo',
+  },
+  {
+    icono: 'caja', titulo: 'Comparativo entre tiendas',
+    detalle: 'Santa Fe, Pedregal y la tercera, cada una con sus asesores, su venta del mes, su participación y lo que lleva cobrado. La dirección ve las tres juntas; cada asesor ve lo suyo.',
     estado: 'Activo',
   },
   {
@@ -52,8 +67,8 @@ const INCLUIDO = [
     estado: 'Activo',
   },
   {
-    icono: 'pdf', titulo: 'PDF de propuesta',
-    detalle: 'Hasta tres páginas: propuesta con gráfica de inversión, anexo técnico con especificaciones, y tiempos, pagos y condiciones. Con logotipo, contacto y firma.',
+    icono: 'pdf', titulo: 'PDF de propuesta con instalación desglosada',
+    detalle: 'Hasta tres páginas: propuesta con gráfica de inversión, anexo técnico con especificaciones, y tiempos, pagos y condiciones. El total separa material y accesorios de instalación y mano de obra, que es lo primero que pregunta el cliente. La mano de obra sale con tarifa de referencia hasta que se cargue la real.',
     estado: 'Activo',
   },
   {
@@ -99,6 +114,10 @@ const INCLUIDO = [
 ];
 
 const FASE2 = [
+  {
+    titulo: 'Mano de obra con la tarifa real',
+    detalle: 'Hoy la instalación sale en el PDF con una tarifa de referencia y así lo dice la nota al pie. Con los costos reales de cuadrilla por familia y por dificultad, deja de ser tentativa.',
+  },
   {
     titulo: 'Las 34 listas de precios en hoja de cálculo compartida',
     detalle: 'Los 32 proveedores con su estructura real: apartado, proveedor, código, línea, color y bisel. Hoy son 34 archivos de Excel sueltos, y por eso el medidor todavía estima con un promedio por metro en vez de con el precio de la línea.',

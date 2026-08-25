@@ -1071,3 +1071,104 @@ body:has(.teclado--visible) .totales { bottom: 268px; }
 html.texto-grande .teclado__tecla,
 html.texto-mayor .teclado__tecla { height: 60px; font-size: 24px; }
 html.texto-mayor .js-medida { font-size: 20px; }
+
+/* ======================================================== estado de la cotización */
+
+/* Un cuarto color, frío, para lo que ya está liquidado. Cierra la escalera
+   ámbar → verde sin competir con ninguno de los dos. */
+:root {
+  --cerrado:      #3A5A64;
+  --cerrado-soft: #E2EBEE;
+  --muerto:       #8B8781;
+  --muerto-soft:  #EDEBE8;
+}
+
+.pill--cerrado { background: var(--cerrado-soft); color: var(--cerrado); }
+.pill--muerto  { background: var(--muerto-soft);  color: var(--muerto); }
+.nota--cerrado { background: var(--cerrado-soft); border-color: #C9D8DD; color: var(--cerrado); }
+
+/* Barra de color al canto de la tarjeta: se lee el estado sin leer la cifra. */
+.linea--estado { position: relative; padding-left: 4px; }
+.linea--estado::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
+  border-radius: var(--r3) 0 0 var(--r3);
+}
+.linea--warn::before    { background: var(--warn); }
+.linea--ok::before      { background: var(--ok); }
+.linea--cerrado::before { background: var(--cerrado); }
+.linea--muerto::before  { background: var(--muerto); }
+.linea--muerto { opacity: .62; }
+
+.semaforo { display: flex; gap: 2px; height: 8px; border-radius: 3px; overflow: hidden; }
+.semaforo__seg { transition: opacity .16s var(--ease); }
+.semaforo__seg:hover { opacity: .7; }
+
+/* ======================================================== medidor: método y agregar */
+
+.metodo { display: inline-flex; border: 1px solid var(--line-2); border-radius: var(--r2); overflow: hidden; }
+.metodo__btn {
+  padding: 6px 12px; font-size: 12px; font-weight: 500;
+  border: 0; background: var(--surface); color: var(--ink-3); cursor: pointer;
+  transition: background .14s var(--ease), color .14s var(--ease);
+}
+.metodo__btn + .metodo__btn { border-left: 1px solid var(--line); }
+.metodo__btn:hover { background: var(--surface-2); color: var(--ink); }
+.metodo__btn[aria-pressed='true'] { background: var(--ink); color: #fff; }
+
+.agregar {
+  margin-top: var(--s5);
+  border: 1px dashed var(--line-2); border-radius: var(--r3);
+  padding: var(--s4); background: var(--surface-2);
+}
+.agregar__etq {
+  display: block; font-size: 11px; letter-spacing: .09em; text-transform: uppercase;
+  color: var(--ink-4); font-weight: 600; margin-bottom: 10px;
+}
+.agregar__chips { display: flex; flex-wrap: wrap; gap: var(--s2); }
+.agregar__chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 9px 14px; font-size: 13.5px; font-weight: 500;
+  border: 1px solid var(--line-2); border-radius: var(--r-pill);
+  background: var(--surface); color: var(--ink-2); cursor: pointer;
+  transition: border-color .14s var(--ease), background .14s var(--ease), color .14s var(--ease);
+}
+.agregar__chip:hover { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+.agregar__chip:active { transform: scale(.97); }
+.agregar__chip svg { opacity: .6; }
+
+/* ======================================================== fotos de obra */
+
+.fotos { border-top: 1px dashed var(--line); padding-top: var(--s4); }
+.fotos__tira { display: flex; gap: var(--s2); flex-wrap: wrap; margin-top: var(--s3); }
+.fotos__tira:empty { margin-top: 0; }
+
+.foto { position: relative; margin: 0; width: 84px; height: 84px; border-radius: var(--r2); overflow: hidden; background: var(--surface-3); }
+.foto img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.foto__quitar {
+  position: absolute; top: 3px; right: 3px;
+  width: 22px; height: 22px; display: grid; place-items: center;
+  border: 0; border-radius: 50%; cursor: pointer;
+  background: rgba(28, 27, 25, .74); color: #fff;
+}
+.foto__quitar:hover { background: var(--danger); }
+
+@media (max-width: 620px) {
+  .foto { width: 72px; height: 72px; }
+  .agregar__chip { padding: 10px 14px; font-size: 14px; }
+}
+
+html.texto-mayor .agregar__chip { font-size: 17px; padding: 13px 18px; }
+html.texto-mayor .metodo__btn { font-size: 15px; padding: 9px 16px; }
+
+/* ======================================================== equipo */
+
+.equipo-fila {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1.1fr) auto auto;
+  gap: var(--s2); align-items: center;
+}
+.equipo-fila .check { padding: 0; }
+@media (max-width: 860px) {
+  .equipo-fila { grid-template-columns: 1fr 1fr; }
+  .equipo-fila > .btn--icon { grid-column: 2; justify-self: end; }
+}

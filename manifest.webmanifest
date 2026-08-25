@@ -1,0 +1,29 @@
+{
+  "name": "Mundo de Interiores · Cotizador y ventas",
+  "short_name": "Mundo Interiores",
+  "description": "Medición en obra, cotización de pisos y cortinería, y reporte mensual de ventas.",
+  "lang": "es-MX",
+  "start_url": "./index.html#/inicio",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#F4F3F1",
+  "theme_color": "#F4F3F1",
+  "icons": [
+    { "src": "assets/icono.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Medir en obra",
+      "short_name": "Medir",
+      "description": "Levantamiento con teclado numérico",
+      "url": "./index.html#/medidor"
+    },
+    {
+      "name": "Reporte de ventas",
+      "short_name": "Ventas",
+      "description": "El mes por asesor y por tienda",
+      "url": "./index.html#/ventas"
+    }
+  ]
+}

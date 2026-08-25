@@ -37,6 +37,48 @@ export const CATEGORIAS_VENTA = {
 
 export const nombreCategoria = (c) => CATEGORIAS_VENTA[c]?.nombre ?? 'Otro';
 
+/**
+ * El semáforo que pidió la dirección. Una cotización enviada no es una venta,
+ * y el color tiene que decirlo antes de que alguien lea la cifra.
+ *
+ *   ámbar    cotizada, sin un peso encima
+ *   verde    llegó el anticipo, el proyecto arranca
+ *   petróleo liquidada, ya no debe nada
+ *   gris     cancelada, no suma al mes
+ */
+export const ESTADOS = {
+  cotizada: {
+    nombre: 'Cotizada', corto: 'Cotizada', tono: 'warn',
+    nota: 'Enviada al cliente y sin pago. Todavía no es venta.',
+  },
+  anticipada: {
+    nombre: 'Anticipada', corto: 'Anticipo', tono: 'ok',
+    nota: 'Entró el anticipo. Ya se puede levantar la requisición.',
+  },
+  liquidada: {
+    nombre: 'Liquidada', corto: 'Liquidada', tono: 'cerrado',
+    nota: 'Pagada al cien por ciento. No queda saldo.',
+  },
+  cancelada: {
+    nombre: 'Cancelada', corto: 'Cancelada', tono: 'muerto',
+    nota: 'No se concretó. No cuenta para el mes ni para el asesor.',
+  },
+};
+
+export function estadoVenta(v) {
+  if (v?.cancelada) return 'cancelada';
+  const total = totalVenta(v);
+  const pagado = num(v?.pagado);
+  // Medio peso de tolerancia: los redondeos no deben dejar una obra en ámbar.
+  if (total > 0 && pagado >= total - 0.5) return 'liquidada';
+  const esperado = anticipoEsperado(v);
+  if (esperado > 0 && pagado >= esperado - 0.5) return 'anticipada';
+  return 'cotizada';
+}
+
+export const tonoEstado = (v) => ESTADOS[estadoVenta(v)].tono;
+export const nombreEstado = (v) => ESTADOS[estadoVenta(v)].nombre;
+
 // --------------------------------------------------------------------------- modelo
 
 export const lineaVaciaVenta = () => ({
@@ -51,18 +93,21 @@ export const lineaVaciaVenta = () => ({
   precioUnit: '',
 });
 
-export const ventaVacia = (vendedor = '') => ({
+export const ventaVacia = (vendedor = '', sucursal = '') => ({
   id: uid('vta'),
   folio: '',
   fecha: new Date().toISOString().slice(0, 10),
   vendedor,
+  sucursal,
   cliente: '',
   obra: '',
   lineas: [lineaVaciaVenta()],
   anticipoPct: 0.8,
   pagado: 0,
+  cancelada: false,
   comprobante: '',
   carpetaDrive: '',
+  pasos: {},
   notas: '',
 });
 
@@ -103,12 +148,18 @@ const pct = (parte, total) => (total > 0 ? limpio(parte / total, 6) : 0);
  * El reporte que pidió la dirección: qué vendió cada quien, de qué producto,
  * en qué proporción, y cuánto de eso ya está cobrado.
  */
-export function resumenVentas(ventas = [], { mes = null, vendedor = null } = {}) {
-  const filtradas = ventas.filter((v) => {
+export function resumenVentas(ventas = [], { mes = null, vendedor = null, sucursal = null } = {}) {
+  const delMes = ventas.filter((v) => {
     if (mes && mesDe(v.fecha) !== mes) return false;
     if (vendedor && v.vendedor !== vendedor) return false;
+    if (sucursal && v.sucursal !== sucursal) return false;
     return true;
   });
+
+  // Una cotización cancelada no suma al mes ni al asesor, pero se cuenta aparte:
+  // saber cuánto se cotizó y no se cerró es la mitad del valor del reporte.
+  const canceladas = delMes.filter((v) => estadoVenta(v) === 'cancelada');
+  const filtradas = delMes.filter((v) => estadoVenta(v) !== 'cancelada');
 
   const total = limpio(filtradas.reduce((a, v) => a + totalVenta(v), 0));
   const cobrado = limpio(filtradas.reduce((a, v) => a + num(v.pagado), 0));
@@ -116,13 +167,27 @@ export function resumenVentas(ventas = [], { mes = null, vendedor = null } = {})
   const porVendedor = new Map();
   const porCategoria = new Map();
   const porLinea = new Map();
+  const porSucursal = new Map();
+  const porEstado = { cotizada: 0, anticipada: 0, liquidada: 0, cancelada: 0 };
+
+  for (const v of canceladas) porEstado.cancelada += totalVenta(v);
 
   for (const v of filtradas) {
     const t = totalVenta(v);
     const nombre = (v.vendedor || '').trim() || 'Sin asignar';
+    const tienda = (v.sucursal || '').trim() || 'Sin sucursal';
+
+    porEstado[estadoVenta(v)] += t;
+
+    const suc = porSucursal.get(tienda) ?? { sucursal: tienda, total: 0, cobrado: 0, cuenta: 0, asesores: new Set() };
+    suc.total = limpio(suc.total + t);
+    suc.cobrado = limpio(suc.cobrado + num(v.pagado));
+    suc.cuenta += 1;
+    suc.asesores.add(nombre);
+    porSucursal.set(tienda, suc);
 
     const acc = porVendedor.get(nombre) ?? {
-      vendedor: nombre, total: 0, cobrado: 0, cuenta: 0,
+      vendedor: nombre, sucursal: tienda, total: 0, cobrado: 0, cuenta: 0,
       categorias: new Map(),
     };
     acc.total += t;
@@ -161,6 +226,7 @@ export function resumenVentas(ventas = [], { mes = null, vendedor = null } = {})
   const vendedores = Array.from(porVendedor.values())
     .map((a) => ({
       vendedor: a.vendedor,
+      sucursal: a.sucursal,
       total: limpio(a.total),
       cobrado: limpio(a.cobrado),
       cuenta: a.cuenta,
@@ -180,17 +246,33 @@ export function resumenVentas(ventas = [], { mes = null, vendedor = null } = {})
 
   const lineas = Array.from(porLinea.values()).sort((a, b) => b.total - a.total);
 
+  const sucursales = Array.from(porSucursal.values())
+    .map((s) => ({
+      sucursal: s.sucursal,
+      total: s.total,
+      cobrado: s.cobrado,
+      cuenta: s.cuenta,
+      asesores: s.asesores.size,
+      participacion: pct(s.total, total),
+      ticket: s.cuenta ? limpio(s.total / s.cuenta) : 0,
+    }))
+    .sort((a, b) => b.total - a.total);
+
   return {
     mes,
     ventas: filtradas,
+    canceladas,
     cuenta: filtradas.length,
     total,
     cobrado,
     porCobrar: limpio(Math.max(0, total - cobrado)),
     ticket: filtradas.length ? limpio(total / filtradas.length) : 0,
     vendedores,
+    sucursales,
     categorias,
     lineas,
+    // Cuánto del mes está en cada peldaño del semáforo.
+    estados: Object.fromEntries(Object.entries(porEstado).map(([k, n]) => [k, limpio(n)])),
   };
 }
 
@@ -227,6 +309,26 @@ export function rolDe(nombre, equipo = []) {
 
 export const esAdmin = (nombre, equipo = []) => rolDe(nombre, equipo) === 'admin';
 
+const buscarPersona = (nombre, equipo = []) => {
+  const n = String(nombre ?? '').trim().toLowerCase();
+  return equipo.find((x) => String(x.nombre ?? '').trim().toLowerCase() === n) ?? null;
+};
+
+/** La tienda a la que pertenece una persona. La venta la hereda al registrarse. */
+export const sucursalDe = (nombre, equipo = []) => buscarPersona(nombre, equipo)?.sucursal ?? '';
+
+/** Quién puede aparecer como asesor de una venta. La dirección también vende. */
+export const asesoresDe = (equipo = []) =>
+  equipo.filter((p) => p.vende !== false && String(p.nombre ?? '').trim());
+
+/** Cuántos asesores tiene cada tienda, para ver de un vistazo qué falta capturar. */
+export function plantillaPorSucursal(sucursales = [], equipo = []) {
+  return sucursales.map((s) => ({
+    sucursal: s,
+    asesores: asesoresDe(equipo).filter((p) => p.sucursal === s).map((p) => p.nombre),
+  }));
+}
+
 /** Lo que cada quien puede ver: el admin todo, el asesor lo suyo. */
 export function ventasVisibles(ventas, usuario, equipo) {
   if (esAdmin(usuario, equipo)) return ventas;
@@ -249,7 +351,8 @@ export const PASOS_PROYECTO = [
   { clave: 'requisicion', nombre: 'Requisición', responsable: 'Asesor de ventas',
     nota: 'Qué material y cuánto. Hoy es un Excel; migra a hoja de cálculo compartida.' },
   { clave: 'orden', nombre: 'Orden de compra', responsable: 'Aarón',
-    nota: 'Se genera desde la requisición. Aarón compra y suministra el material.' },
+    nota: 'Se genera desde la requisición. Con la orden en mano ya se puede pedir el material.',
+    liberaCompra: true },
   { clave: 'instalacion', nombre: 'Instalación del material', responsable: 'Instalación',
     nota: 'Incluye cubetas de pegamento y consumibles.' },
 ];
@@ -257,5 +360,11 @@ export const PASOS_PROYECTO = [
 export function avanceProyecto(venta) {
   const hechos = venta?.pasos ?? {};
   const listos = PASOS_PROYECTO.filter((p) => hechos[p.clave]).length;
-  return { listos, total: PASOS_PROYECTO.length, pct: pct(listos, PASOS_PROYECTO.length) };
+  return {
+    listos,
+    total: PASOS_PROYECTO.length,
+    pct: pct(listos, PASOS_PROYECTO.length),
+    // El disparador de la operación: con la orden de compra, Aarón ya pide material.
+    puedePedirMaterial: PASOS_PROYECTO.filter((p) => p.liberaCompra).every((p) => hechos[p.clave]),
+  };
 }

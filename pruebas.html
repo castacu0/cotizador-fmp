@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pruebas del motor de cálculo · Cotizador Mundo de Interiores</title>
-<link rel="stylesheet" href="css/app.css?v=15">
+<link rel="stylesheet" href="css/app.css?v=16">
 <style>
   .main{max-width:920px}
   .t{width:100%;border-collapse:collapse;font-size:13.5px}
@@ -43,7 +43,8 @@ import { CONOCIMIENTO, responder, CONTACTO } from './js/asistente.js';
 import { parsearLista, esLineaZoclo, calcularEscalera, calcularCuarto, calcularMedicion,
          estimarMedicion, parsearNota } from './js/medidas.js';
 import { importeLinea, totalVenta, anticipoEsperado, estaCobrada, resumenVentas,
-         compararMes, ventasVisibles, esAdmin, rolDe } from './js/ventas.js';
+         compararMes, ventasVisibles, esAdmin, rolDe, estadoVenta, ESTADOS,
+         asesoresDe, sucursalDe, plantillaPorSucursal, avanceProyecto } from './js/ventas.js';
 
 const cfg = structuredClone(CONFIG_DEFAULT);
 const pruebas = [];
@@ -863,6 +864,110 @@ P('Permisos', 'Sin nombre capturado no se ve ninguna venta', () => {
 });
 P('Permisos', 'Quien no está en la lista del equipo entra como asesor', () => {
   return { ok: rolDe('Juan', cfg.equipo) === 'vendedor', obtenido: rolDe('Juan', cfg.equipo), esperado: 'vendedor' };
+});
+P('Permisos', 'Melissa administra pero no aparece como asesora de venta', () => {
+  const nombres = asesoresDe(cfg.equipo).map((p) => p.nombre);
+  return { ok: !nombres.includes('Melissa') && nombres.includes('Fernando') && nombres.includes('Sebastián'),
+           obtenido: nombres.join(', '), esperado: 'Fernando, Sebastián' };
+});
+
+// ---------------------------------------------------------------- semáforo
+
+// El color es el mensaje: cotizar no es vender, y la dirección quiere verlo
+// sin leer la cifra. Estas pruebas cuidan que el color no mienta.
+
+const conPago = (total, pagado, extra = {}) => ({
+  fecha: '2026-08-10', vendedor: 'Sebastián', anticipoPct: 0.8, pagado,
+  lineas: [{ categoria: 'spc', cantidad: 1, precioUnit: total }], ...extra,
+});
+
+P('Semáforo', 'Sin un peso encima la cotización está en ámbar', () => {
+  const e = estadoVenta(conPago(100000, 0));
+  return { ok: e === 'cotizada' && ESTADOS[e].tono === 'warn', obtenido: e, esperado: 'cotizada' };
+});
+P('Semáforo', 'Con el anticipo del 80% pasa a verde', () => {
+  const e = estadoVenta(conPago(100000, 80000));
+  return { ok: e === 'anticipada' && ESTADOS[e].tono === 'ok', obtenido: e, esperado: 'anticipada' };
+});
+P('Semáforo', 'Un peso abajo del anticipo sigue en ámbar', () => {
+  const e = estadoVenta(conPago(100000, 79000));
+  return { ok: e === 'cotizada', obtenido: e, esperado: 'cotizada' };
+});
+P('Semáforo', 'Pagada al cien por ciento cambia a liquidada', () => {
+  const e = estadoVenta(conPago(100000, 100000));
+  return { ok: e === 'liquidada' && ESTADOS[e].tono === 'cerrado', obtenido: e, esperado: 'liquidada' };
+});
+P('Semáforo', 'Un redondeo de centavos no deja la obra en el peldaño de abajo', () => {
+  const e = estadoVenta(conPago(100000, 99999.7));
+  return { ok: e === 'liquidada', obtenido: e, esperado: 'liquidada' };
+});
+P('Semáforo', 'La cancelada manda sobre cualquier pago registrado', () => {
+  const e = estadoVenta(conPago(100000, 100000, { cancelada: true }));
+  return { ok: e === 'cancelada', obtenido: e, esperado: 'cancelada' };
+});
+P('Semáforo', 'Una cancelada no suma al mes ni al asesor', () => {
+  const lista = [conPago(100000, 80000), conPago(50000, 0, { cancelada: true })];
+  const r = resumenVentas(lista, { mes: '2026-08' });
+  return { ok: cerca(r.total, 100000) && r.cuenta === 1 && r.canceladas.length === 1,
+           obtenido: `${r.total} · ${r.cuenta} vigentes · ${r.canceladas.length} cancelada`,
+           esperado: '100000 · 1 vigente · 1 cancelada' };
+});
+P('Semáforo', 'El embudo reparte el mes entre los peldaños y cuadra con el total', () => {
+  const lista = [conPago(100000, 0), conPago(200000, 160000), conPago(300000, 300000)];
+  const r = resumenVentas(lista, { mes: '2026-08' });
+  const suma = r.estados.cotizada + r.estados.anticipada + r.estados.liquidada;
+  return { ok: cerca(r.estados.cotizada, 100000) && cerca(r.estados.anticipada, 200000)
+             && cerca(r.estados.liquidada, 300000) && cerca(suma, r.total),
+           obtenido: suma, esperado: r.total };
+});
+
+// ---------------------------------------------------------------- tiendas
+
+const VENTAS_TIENDA = [
+  { fecha: '2026-08-03', vendedor: 'Fernando', sucursal: 'Santa Fe', anticipoPct: 0.8, pagado: 0,
+    lineas: [{ categoria: 'spc', cantidad: 100, precioUnit: 600 }] },
+  { fecha: '2026-08-07', vendedor: 'Sebastián', sucursal: 'Pedregal', anticipoPct: 0.8, pagado: 32000,
+    lineas: [{ categoria: 'madera', cantidad: 50, precioUnit: 800 }] },
+  { fecha: '2026-08-19', vendedor: 'Fernando', sucursal: 'Santa Fe', anticipoPct: 0.8, pagado: 20000,
+    lineas: [{ categoria: 'spc', cantidad: 40, precioUnit: 500 }] },
+];
+
+P('Tiendas', 'Agrupa el mes por tienda y las ordena por venta', () => {
+  const r = resumenVentas(VENTAS_TIENDA, { mes: '2026-08' });
+  const sf = r.sucursales.find((x) => x.sucursal === 'Santa Fe');
+  return { ok: r.sucursales.length === 2 && cerca(sf.total, 80000) && sf.cuenta === 2,
+           obtenido: `${r.sucursales.length} tiendas · Santa Fe ${sf.total}`, esperado: '2 tiendas · Santa Fe 80000' };
+});
+P('Tiendas', 'Cuenta cuántos asesores distintos vendieron en cada tienda', () => {
+  const r = resumenVentas(VENTAS_TIENDA, { mes: '2026-08' });
+  const sf = r.sucursales.find((x) => x.sucursal === 'Santa Fe');
+  return { ok: sf.asesores === 1, obtenido: sf.asesores, esperado: 1 };
+});
+P('Tiendas', 'La participación de las tiendas suma cien por ciento', () => {
+  const r = resumenVentas(VENTAS_TIENDA, { mes: '2026-08' });
+  const suma = r.sucursales.reduce((a, s) => a + s.participacion, 0);
+  return { ok: cerca(suma, 1, 0.0001), obtenido: suma, esperado: 1 };
+});
+P('Tiendas', 'Se puede filtrar el reporte a una sola tienda', () => {
+  const r = resumenVentas(VENTAS_TIENDA, { mes: '2026-08', sucursal: 'Pedregal' });
+  return { ok: cerca(r.total, 40000) && r.cuenta === 1, obtenido: r.total, esperado: 40000 };
+});
+P('Tiendas', 'La venta hereda la tienda del asesor que la registra', () => {
+  return { ok: sucursalDe('Sebastián', cfg.equipo) === 'Pedregal',
+           obtenido: sucursalDe('Sebastián', cfg.equipo), esperado: 'Pedregal' };
+});
+P('Tiendas', 'La plantilla enseña qué tiendas todavía no tienen asesor', () => {
+  const p = plantillaPorSucursal(cfg.sucursales, cfg.equipo);
+  const vacias = p.filter((t) => !t.asesores.length).map((t) => t.sucursal);
+  return { ok: p.length === 3 && vacias.length === 1, obtenido: `vacías: ${vacias.join(', ') || 'ninguna'}`,
+           esperado: '1 tienda sin asesor' };
+});
+
+P('Orden de compra', 'El material se pide hasta que existe la orden de compra', () => {
+  const sin = avanceProyecto({ pasos: { presupuesto: true, pago: true, requisicion: true } });
+  const con = avanceProyecto({ pasos: { presupuesto: true, pago: true, requisicion: true, orden: true } });
+  return { ok: !sin.puedePedirMaterial && con.puedePedirMaterial,
+           obtenido: `${sin.puedePedirMaterial} · ${con.puedePedirMaterial}`, esperado: 'false · true' };
 });
 
 // ---------------------------------------------------------------- ejecución
