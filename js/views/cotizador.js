@@ -4,7 +4,7 @@ import { el, $, fmtMXN, fmtMXNLargo, fmtNum, fmtFecha, sumarDias, uid } from '..
 import * as S from '../state.js';
 import { CATEGORIAS, PATRONES, PLIEGUES, calcularPartida, calcularTotales,
          estimarPerimetro, leadTimeProducto, precioBaseMXN } from '../pricing.js';
-import { generarPDF } from '../pdf.js';
+import { generarPDF, cargarJsPDF } from '../pdf.js';
 import { cargarEjemplo, hayDatosParaEjemplo } from '../demo.js';
 import { PLANTILLAS, armarMensaje, telefonoWhatsApp } from '../mensajes.js';
 import { icono, accion, desplegable, campo, entrada, selector, casilla, pastillasToggle,
@@ -890,6 +890,7 @@ async function exportarPDF() {
   if (!datos) return;
   if (!(await confirmarSiPierde(datos.totales))) return;
   try {
+    await cargarJsPDF();
     const { nombre, paginas } = generarPDF(datos.cot, datos.totales, datos.config);
     S.archivarCotizacion(datos.totales);
     avisar(`PDF de ${paginas} página(s) generado`);
@@ -906,6 +907,7 @@ async function previsualizarPDF() {
   if (!datos) return;
   if (!(await confirmarSiPierde(datos.totales))) return;
   try {
+    await cargarJsPDF();
     const { url } = generarPDF(datos.cot, datos.totales, datos.config, { modo: 'url' });
     abrirModal({ titulo: 'Vista previa', ancho: true, subtitulo: 'Revisa antes de enviarlo al cliente. Máximo tres páginas.' },
       el('iframe', { src: url, style: 'width:100%;height:70vh;border:1px solid var(--line);border-radius:10px' }),

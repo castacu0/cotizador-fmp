@@ -772,6 +772,48 @@ P('Estimado', 'Una obra sin medidas da cero, no NaN', () => {
   return { ok: e.total === 0 && Number.isFinite(e.total), obtenido: e.total, esperado: 0 };
 });
 
+// Quien mide tiene que poder decir el precio en la casa, cuarto por cuarto.
+// Si los cuartos no suman el total, el número que diga en la visita no cuadra
+// con el que llegue después por escrito.
+const OBRA_TRES = {
+  cuartos: [
+    { id: 'a', tipo: 'area', areas: '20', zoclo: '10', escalera: {} },
+    { id: 'b', tipo: 'area', areas: '30', zoclo: '', escalera: {} },
+    { id: 'c', tipo: 'area', areas: '50', zoclo: '5', escalera: {} },
+  ],
+  precioM2: null, mermaPct: null, incluirZoclo: true, incluirInstalacion: false,
+};
+
+P('Estimado', 'Cada cuarto trae su importe', () => {
+  const e = estimarMedicion(OBRA_TRES, cfg);
+  const a = e.cuartos.find((x) => x.cuarto.id === 'a');
+  // 20 m² con 10% de merma = 22 × 300 = 6 600, más 10 ml × 145 = 1 450.
+  return { ok: cerca(a.subtotal, 8050), obtenido: a.subtotal, esperado: 8050 };
+});
+P('Estimado', 'Los cuartos suman exactamente el total de la obra', () => {
+  const e = estimarMedicion(OBRA_TRES, cfg);
+  const suma = e.cuartos.reduce((s, c) => s + c.total, 0);
+  return { ok: cerca(suma, e.total, 0.05), obtenido: Number(suma.toFixed(2)), esperado: e.total };
+});
+P('Estimado', 'El precio del material elegido pisa al promedio de Ajustes', () => {
+  const e = estimarMedicion(OBRA_TRES, cfg, { precioM2: 780 });
+  // 100 m² con 10% de merma = 110 × 780 = 85 800.
+  return { ok: cerca(e.material, 85800) && e.origenPrecio === 'material',
+           obtenido: `${e.material} · ${e.origenPrecio}`, esperado: '85800 · material' };
+});
+P('Estimado', 'Dice de dónde salió el precio que está usando', () => {
+  const prom = estimarMedicion(OBRA_TRES, cfg).origenPrecio;
+  const obra = estimarMedicion({ ...OBRA_TRES, precioM2: 500 }, cfg).origenPrecio;
+  const mat = estimarMedicion(OBRA_TRES, cfg, { precioM2: 780 }).origenPrecio;
+  return { ok: prom === 'promedio' && obra === 'obra' && mat === 'material',
+           obtenido: `${prom}/${obra}/${mat}`, esperado: 'promedio/obra/material' };
+});
+P('Estimado', 'Sin zoclo, ningún cuarto cobra zoclo', () => {
+  const e = estimarMedicion({ ...OBRA_TRES, incluirZoclo: false }, cfg);
+  return { ok: e.cuartos.every((c) => c.zoclo === 0) && e.zoclo === 0,
+           obtenido: e.zoclo, esperado: 0 };
+});
+
 // ---------------------------------------------------------------- ventas
 
 const V = (vendedor, fecha, lineas, pagado = 0, anticipoPct = 0.8) => ({

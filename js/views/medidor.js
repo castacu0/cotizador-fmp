@@ -8,7 +8,7 @@ import { el, $, fmtMXN, fmtNum, fmtFechaCorta, uid } from '../format.js';
 import * as S from '../state.js';
 import { icono, accion, campo, entrada, selector, casilla, abrirModal, cerrarModal,
          confirmar, avisar, vacio, nota } from '../ui.js';
-import { CATEGORIAS } from '../pricing.js';
+import { CATEGORIAS, precioBaseMXN } from '../pricing.js';
 import { medicionVacia, cuartoVacio, calcularCuarto, calcularMedicion, estimarMedicion,
          parsearNota, CUARTOS_SUGERIDOS } from '../medidas.js';
 import * as Fotos from '../fotos.js';
@@ -151,6 +151,7 @@ function pantallaObra(m) {
           entrada({ valor: m.cliente, placeholder: 'Nombre de quien contrata',
             onInput: (e) => S.actualizarMedicion(m.id, { cliente: e.target.value }) })))),
 
+    barraMaterial(m),
     listaCuartos(m),
 
     barraAgregar(m),
@@ -190,6 +191,89 @@ function controlMetodo(m) {
 }
 
 const metodoDe = (m) => m.metodo ?? S.obtener().config.medidor?.metodo ?? 'laser';
+
+/** El material elegido para la obra, si sigue existiendo en el catálogo. */
+const materialDe = (m) =>
+  (m?.productoId ? S.obtener().catalogo.find((p) => p.id === m.productoId) : null) ?? null;
+
+/**
+ * Las opciones del estimado. Cuando hay material elegido, su precio manda:
+ * es lo que convierte el estimado de campo en un número que se puede decir.
+ */
+function opcionesEstimado(m) {
+  const producto = materialDe(m);
+  if (!producto) return {};
+  return { precioM2: precioBaseMXN(producto, S.obtener().config) };
+}
+
+/**
+ * Selector de material. Sin él, el estimado usa el promedio de Ajustes y
+ * la pantalla lo dice. Con él, usa el precio real de la línea.
+ */
+function barraMaterial(m) {
+  const producto = materialDe(m);
+  const cfg = S.obtener().config;
+
+  return el('div', { class: `material${producto ? ' material--fijo' : ''}` },
+    el('div', { style: 'flex:1;min-width:0' },
+      el('span', { class: 'material__etq' }, producto ? 'Material de la obra' : 'Precio del estimado'),
+      el('span', { class: 'material__nombre' },
+        producto ? producto.nombre : `Promedio de ${fmtMXN(cfg.medidor.precioM2, 0)} por m²`),
+      el('span', { class: 'material__precio num' },
+        producto
+          ? `${fmtMXN(precioBaseMXN(producto, cfg), 0)} / m² · ${CATEGORIAS[producto.categoria]?.nombre ?? ''}`
+          : 'Elige el material y el estimado usa su precio real')),
+    el('div', { class: 'row row--tight' },
+      el('button', { class: 'btn btn--sm', onclick: () => abrirSelectorMaterial(m) },
+        icono('buscar', 14), producto ? 'Cambiar' : 'Elegir material'),
+      producto
+        ? el('button', {
+            class: 'btn btn--ghost btn--icon', 'aria-label': 'Quitar el material',
+            onclick: () => { S.actualizarMedicion(m.id, { productoId: null }); redibujar(); },
+          }, icono('cerrar', 14))
+        : null));
+}
+
+function abrirSelectorMaterial(m) {
+  const s = S.obtener();
+  const busca = entrada({ placeholder: 'encino, spc, porcelanato, 14 mm…', autofocus: true });
+  const lista = el('div', { class: 'res mt-4', style: 'max-height:52vh;overflow:auto' });
+
+  const pintar = () => {
+    const res = S.buscarProductos(s.catalogo, busca.value).slice(0, 60);
+    lista.replaceChildren(...(res.length
+      ? res.map(({ producto: p }) => el('button', {
+          class: 'res__item',
+          onclick: () => {
+            S.actualizarMedicion(m.id, { productoId: p.id, precioM2: null });
+            cerrarModal();
+            avisar(`Precio de ${p.nombre} aplicado`);
+            redibujar();
+          },
+        },
+          el('span', { class: 'res__main' },
+            el('span', { class: 'res__name' }, p.nombre),
+            el('span', { class: 'res__meta' },
+              `${CATEGORIAS[p.categoria]?.nombre ?? ''}${p.color ? ' · ' + p.color : ''} · ${p.sku}`)),
+          el('span', { class: 'res__price' },
+            el('span', { class: 'res__amount' }, fmtMXN(precioBaseMXN(p, s.config), 0)),
+            el('span', { class: 'res__unit' }, `por ${p.unidad}`))))
+      : [el('div', { class: 'res__empty' }, 'Ningún material coincide.')]));
+  };
+
+  busca.addEventListener('input', pintar);
+  pintar();
+
+  abrirModal({ titulo: 'Material de la obra',
+    subtitulo: 'El estimado usará este precio en lugar del promedio, cuarto por cuarto.' },
+    el('div', {}, busca, lista,
+      s.catalogoEsDemo
+        ? el('div', { class: 'mt-4' },
+            nota('El catálogo cargado es de demostración. Cuando entren las listas reales de los ' +
+                 'proveedores, este mismo selector dará el precio de venta verdadero.', 'warn', 'alerta'))
+        : null),
+    [el('button', { class: 'btn', onclick: cerrarModal }, 'Cancelar')]);
+}
 
 // Lo que el equipo agrega una y otra vez. Un toque y queda numerado solo.
 const RAPIDOS = [
@@ -252,7 +336,10 @@ function tarjetaCuarto(m, c, indice) {
     const r = calcularCuarto(c);
     totalEl.replaceChildren(
       el('span', { class: 'cuarto__m2' }, `${fmtNum(r.areaM2, 2)} m²`),
-      r.zocloML > 0 ? el('span', { class: 'cuarto__ml' }, `${fmtNum(r.zocloML, 2)} ml`) : null);
+      r.zocloML > 0 ? el('span', { class: 'cuarto__ml' }, `${fmtNum(r.zocloML, 2)} ml`) : null,
+      // El peso de este cuarto, en el renglón del cuarto. Es lo que hace que
+      // quien mide pueda contestar "¿y la cocina cuánto?" sin abrir nada más.
+      el('span', { class: 'cuarto__mxn num' }, precioDeCuarto(c)));
     detalleArea.replaceChildren(...eco(r.areas, 'm²'));
     detalleZoclo.replaceChildren(...eco(r.zoclos, 'ml'));
     return r;
@@ -306,7 +393,7 @@ function tarjetaCuarto(m, c, indice) {
           detalleArea),
         el('div', {}, campoMedida('zoclo', 'Zoclo, en metros lineales', '1.91,.88,1.27'), detalleZoclo));
 
-  const tarjeta = el('article', { class: 'cuarto' },
+  const tarjeta = el('article', { class: 'cuarto', dataset: { cuarto: c.id } },
     el('div', { class: 'cuarto__head' },
       el('span', { class: 'linea__idx' }, String(indice + 1)),
       entrada({
@@ -455,13 +542,31 @@ function barraTotales() {
   return barra;
 }
 
+/** Importe de un cuarto con el precio vigente de la obra, con IVA. */
+function precioDeCuarto(cuarto) {
+  const m = S.medicionAbierta();
+  if (!m) return '—';
+  const est = estimarMedicion(m, S.obtener().config, opcionesEstimado(m));
+  const linea = est.cuartos.find((x) => x.cuarto.id === cuarto.id);
+  return linea && linea.total > 0 ? fmtMXN(linea.total, 0) : '—';
+}
+
 function recalcular() {
   const m = S.medicionAbierta();
   if (!m || !refs.barra) return;
-  const est = estimarMedicion(m, S.obtener().config);
+  const est = estimarMedicion(m, S.obtener().config, opcionesEstimado(m));
   $('.js-t-area', refs.barra).textContent = `${fmtNum(est.areaM2, 2)} m²`;
   $('.js-t-zoclo', refs.barra).textContent = `${fmtNum(est.zocloML, 2)} ml`;
   $('.js-t-total', refs.barra).textContent = est.areaM2 > 0 ? fmtMXN(est.total, 0) : '—';
+
+  // El importe de cada cuarto se repinta con el total: si cambia el material
+  // o la merma, todos los renglones se mueven juntos.
+  for (const nodo of document.querySelectorAll('.js-cuartos .cuarto')) {
+    const id = nodo.dataset.cuarto;
+    const linea = est.cuartos.find((x) => x.cuarto.id === id);
+    const destino = nodo.querySelector('.cuarto__mxn');
+    if (destino) destino.textContent = linea && linea.total > 0 ? fmtMXN(linea.total, 0) : '—';
+  }
 }
 
 // --------------------------------------------------------------------------- teclado
@@ -638,7 +743,7 @@ function abrirEstimado(m) {
 
   const pintar = () => {
     const cur = S.medicionAbierta() ?? m;
-    const est = estimarMedicion(cur, cfg);
+    const est = estimarMedicion(cur, cfg, opcionesEstimado(cur));
     numeros.replaceChildren(
       el('div', { class: 'grid-3 mb-5' },
         kpi('Área medida', `${fmtNum(est.areaM2, 2)} m²`, `${cur.cuartos.length} cuartos`),

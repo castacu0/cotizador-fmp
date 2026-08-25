@@ -872,7 +872,30 @@ function firmas(L) {
 // API
 // ---------------------------------------------------------------------------
 
+/**
+ * jsPDF pesa 360 KB y solo hace falta al momento de generar el documento.
+ * Cargarlo en el arranque castigaba a quien abre el medidor en el teléfono,
+ * que nunca genera un PDF en la obra. Se trae la primera vez que se pide.
+ */
+let jspdfCargado = null;
+
+export function cargarJsPDF() {
+  if (window.jspdf) return Promise.resolve(window.jspdf);
+  if (jspdfCargado) return jspdfCargado;
+  jspdfCargado = new Promise((resolver, rechazar) => {
+    const s = document.createElement('script');
+    s.src = 'vendor/jspdf.umd.min.js';
+    s.onload = () => (window.jspdf ? resolver(window.jspdf) : rechazar(new Error('jsPDF no se registró')));
+    s.onerror = () => rechazar(new Error('No se pudo cargar el generador de PDF'));
+    document.head.append(s);
+  });
+  return jspdfCargado;
+}
+
 export function generarPDF(cot, totales, config, { modo = 'descargar', maxPaginas = 3 } = {}) {
+  if (!window.jspdf) {
+    throw new Error('Llama primero a cargarJsPDF(): el generador todavía no está en memoria.');
+  }
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit: 'mm', format: 'a4', compress: true });
   doc.setProperties({

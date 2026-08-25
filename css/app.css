@@ -1172,3 +1172,95 @@ html.texto-mayor .metodo__btn { font-size: 15px; padding: 9px 16px; }
   .equipo-fila { grid-template-columns: 1fr 1fr; }
   .equipo-fila > .btn--icon { grid-column: 2; justify-self: end; }
 }
+
+/* ======================================================== menú de hamburguesa */
+
+.hamburguesa{
+  display:none; margin-left:auto; flex:none;
+  width:42px; height:42px; padding:0;
+  border:1px solid var(--line-2); border-radius:var(--r2);
+  background:var(--surface); cursor:pointer;
+  align-items:center; justify-content:center;
+}
+.hamburguesa:hover{background:var(--surface-3)}
+.hamburguesa__lineas{display:flex;flex-direction:column;gap:4px;width:18px}
+.hamburguesa__lineas i{display:block;height:2px;border-radius:1px;background:var(--ink);transition:transform .2s var(--ease),opacity .2s var(--ease)}
+body.menu-abierto .hamburguesa__lineas i:nth-child(1){transform:translateY(6px) rotate(45deg)}
+body.menu-abierto .hamburguesa__lineas i:nth-child(2){opacity:0}
+body.menu-abierto .hamburguesa__lineas i:nth-child(3){transform:translateY(-6px) rotate(-45deg)}
+
+.velo{
+  position:fixed; inset:0; z-index:80;
+  background:rgba(26,23,20,.42); backdrop-filter:blur(2px);
+  opacity:0; pointer-events:none; transition:opacity .22s var(--ease);
+}
+body.menu-abierto .velo{opacity:1;pointer-events:auto}
+
+.cajon{
+  position:fixed; top:0; right:0; bottom:0; z-index:90;
+  width:min(86vw,320px);
+  display:flex; flex-direction:column; gap:var(--s4);
+  padding:var(--s4) var(--s4) calc(var(--s5) + env(safe-area-inset-bottom));
+  background:var(--surface); border-left:1px solid var(--line);
+  box-shadow:-18px 0 48px -24px rgba(26,23,20,.5);
+  transform:translateX(102%); transition:transform .26s var(--ease);
+  overflow-y:auto; overscroll-behavior:contain;
+}
+body.menu-abierto .cajon{transform:translateX(0)}
+
+.cajon__cab{display:flex;align-items:center;gap:var(--s3);padding-bottom:var(--s3);border-bottom:1px solid var(--line)}
+.cajon__grupo{flex:1;font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-4);font-weight:600}
+.cajon__lista{display:flex;flex-direction:column}
+.cajon__etq{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-4);font-weight:600;margin-bottom:10px}
+
+.cajon__cambio{
+  display:flex; align-items:center; gap:var(--s2); width:100%;
+  padding:13px var(--s4); border-radius:var(--r2);
+  border:1px dashed var(--line-2); background:var(--surface-2); color:var(--ink-2);
+  font-size:14px; font-weight:500; cursor:pointer;
+}
+.cajon__cambio:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+
+.cajon__pie{margin-top:auto;padding-top:var(--s4);border-top:1px solid var(--line)}
+.cajon__pie .topbar__acciones{flex-direction:column;align-items:stretch;gap:var(--s3)}
+.cajon__pie .tamano{justify-content:space-between}
+.cajon__pie .btn{justify-content:flex-start}
+
+/* Dentro del cajón la barra de pantallas se vuelve una lista vertical. */
+.cajon .nav{flex-direction:column;gap:2px;margin-left:0;width:100%;overflow:visible}
+.cajon .nav__item{text-align:left;padding:13px var(--s4);border-radius:var(--r2);font-size:15.5px}
+.cajon .nav__grupo{display:none}
+
+@media (max-width:900px){
+  .hamburguesa{display:inline-flex}
+  .topbar{gap:var(--s3);padding:0 var(--s4)}
+  .brand__name{font-size:15.5px}
+}
+@media (min-width:901px){
+  .cajon,.velo{display:none}
+}
+
+html.texto-mayor .cajon .nav__item{font-size:18px;padding:16px var(--s4)}
+
+/* ======================================================== material del estimado */
+
+.material{
+  display:flex; align-items:center; gap:var(--s4); flex-wrap:wrap;
+  margin:var(--s5) 0 var(--s3);
+  padding:var(--s4) var(--s5);
+  border:1px dashed var(--line-2); border-radius:var(--r3);
+  background:var(--surface-2);
+}
+.material--fijo{border-style:solid;border-color:var(--accent-line);background:var(--accent-soft)}
+.material__etq{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-4);font-weight:600}
+.material__nombre{display:block;font-size:15.5px;font-weight:600;margin-top:3px}
+.material__precio{display:block;font-size:12.5px;color:var(--ink-3);margin-top:2px}
+
+/* El importe del cuarto vive junto a sus metros, no en otra pantalla. */
+.cuarto__mxn{display:block;font-size:13.5px;font-weight:600;color:var(--accent);margin-top:2px}
+
+@media (max-width:620px){
+  .material{padding:var(--s4)}
+  .material .btn{flex:1}
+}
+html.texto-mayor .cuarto__mxn{font-size:16px}

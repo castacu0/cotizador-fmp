@@ -10,6 +10,10 @@ Aplicación web con dos caminos:
 
 No necesita instalación ni servidor: son archivos estáticos que corren en el navegador.
 
+Abrir el medidor en el teléfono descarga **226 KB**, no los 894 KB de la aplicación
+completa: cada pantalla se trae cuando se entra a ella, y el generador de PDF solo
+cuando se genera un PDF.
+
 ---
 
 ## Enlaces
@@ -70,11 +74,13 @@ reconoce los renglones que empiezan con `Z-` como zoclo, `14 piezas / .90 de anc
 .32 huella / .15 peralte` como escalera, y distingue `Cuarto 2` (nombre) de
 `Descanso 2.11` (medida).
 
-Al terminar da un estimado de campo con el precio promedio de `Ajustes`, y el botón
-**Cotizar** pasa el total a una partida real del cotizador.
+**Precio en la casa, antes de irse.** Cada cuarto muestra su importe junto a sus metros,
+y la barra de abajo el total con IVA. Con **Elegir material** se toma un producto del
+catálogo y todos los renglones se recalculan con su precio real; sin material elegido usa
+el promedio de `Ajustes` y la pantalla lo dice. En cuanto entren las listas de los 32
+proveedores, ese mismo selector da el precio de venta verdadero sin tocar código.
 
-El estimado es provisional: usa un promedio por m², no las listas de los 32 proveedores.
-Cuando esas listas entren, el número deja de ser aproximado.
+El botón **Cotizar** pasa el total a una partida real del cotizador.
 
 ---
 
@@ -159,8 +165,9 @@ a la portada.
 9. **Ajustes**: quién usa la computadora, equipo y permisos, supuestos del medidor,
    datos de la empresa, margen, IVA, tipo de cambio, tarifas e importación del catálogo.
 
-Arriba a la derecha están: el control **A− / A+** con tres tamaños de texto,
-**Dudas** que abre el asistente y **Tutorial** que hace un recorrido guiado.
+En el teléfono la barra se reduce al logotipo y un botón de menú: ahí dentro están las
+pantallas del camino en curso, el cambio al otro camino, el control **A− / A+**, **Dudas**
+y **Tutorial**. En computadora todo eso vive en la barra de arriba.
 El botón **Cargar ejemplo** arma una cotización completa de hotel para ver la aplicación funcionando.
 
 Atajos: `/` enfoca el buscador, `⌘K` o `Ctrl+K` va al cotizador y busca.
@@ -274,8 +281,8 @@ js/
                       ahorro, servicios, ayuda y ajustes
 manifest.webmanifest  Para instalarla en el teléfono
 assets/icono.svg      Icono de la aplicación
-pruebas.html          143 pruebas: cálculo, importación, buscador, medidas,
-                      ventas, semáforo y tiendas
+pruebas.html          148 pruebas: cálculo, importación, buscador, medidas,
+                      estimado, ventas, semáforo y tiendas
 servidor-dev.py       Servidor local sin caché para desarrollo
 vendor/               jsPDF y SheetJS, incluidos localmente
 ```

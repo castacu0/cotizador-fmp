@@ -3,20 +3,14 @@
 import { el, $ } from './format.js';
 import * as S from './state.js';
 import { icono, avisar } from './ui.js';
-import { iniciarTour, tourYaVisto } from './tour.js';
-import { alternarAsistente, abrirAsistente } from './asistente.js';
-import { cargarEjemplo, hayDatosParaEjemplo } from './demo.js';
+// El tutorial, el asistente y la cotización de ejemplo solo existen cuando
+// alguien los toca. Son 40 KB que no tienen por qué viajar a la obra.
+const LLAVE_TOUR = 'fmp.tour.visto.v1';
+const tourYaVisto = () => localStorage.getItem(LLAVE_TOUR) === '1';
 
-import * as Inicio from './views/inicio.js';
-import * as Medidor from './views/medidor.js';
-import * as Cotizador from './views/cotizador.js';
-import * as Catalogo from './views/catalogo.js';
-import * as Ahorro from './views/ahorro.js';
-import * as Servicios from './views/servicios.js';
-import * as Ayuda from './views/ayuda.js';
-import * as Ajustes from './views/ajustes.js';
-import * as Ventas from './views/ventas.js';
-import * as Registro from './views/registro.js';
+// Las vistas se cargan cuando se entra a ellas, no en el arranque.
+// Quien abre el medidor en la obra descarga el medidor, no el cotizador
+// completo con su catálogo y su generador de PDF.
 
 // La dirección pidió dos caminos, no una barra con nueve pestañas.
 // El grupo decide qué se ve arriba: quien vino a cotizar no ve el reporte,
@@ -27,17 +21,23 @@ const GRUPOS = {
 };
 
 const RUTAS = [
-  { hash: '#/inicio',    etiqueta: 'Inicio',    vista: Inicio,    grupo: null },
-  { hash: '#/medidor',   etiqueta: 'Medir',     vista: Medidor,   grupo: 'cotizar' },
-  { hash: '#/cotizador', etiqueta: 'Cotizar',   vista: Cotizador, grupo: 'cotizar' },
-  { hash: '#/catalogo',  etiqueta: 'Catálogo',  vista: Catalogo,  grupo: 'cotizar' },
-  { hash: '#/ayuda',     etiqueta: 'Ayuda',     vista: Ayuda,     grupo: 'cotizar' },
-  { hash: '#/servicios', etiqueta: 'Servicios', vista: Servicios, grupo: 'cotizar' },
-  { hash: '#/ventas',    etiqueta: 'Reporte',   vista: Ventas,    grupo: 'ventas' },
-  { hash: '#/registrar', etiqueta: 'Registrar', vista: Registro,  grupo: 'ventas' },
-  { hash: '#/ahorro',    etiqueta: 'Tablero',   vista: Ahorro,    grupo: 'ventas' },
-  { hash: '#/ajustes',   etiqueta: 'Ajustes',   vista: Ajustes,   grupo: '*' },
+  { hash: '#/inicio',    etiqueta: 'Inicio',    grupo: null,      cargar: () => import('./views/inicio.js') },
+  { hash: '#/medidor',   etiqueta: 'Medir',     grupo: 'cotizar', cargar: () => import('./views/medidor.js') },
+  { hash: '#/cotizador', etiqueta: 'Cotizar',   grupo: 'cotizar', cargar: () => import('./views/cotizador.js') },
+  { hash: '#/catalogo',  etiqueta: 'Catálogo',  grupo: 'cotizar', cargar: () => import('./views/catalogo.js') },
+  { hash: '#/ayuda',     etiqueta: 'Ayuda',     grupo: 'cotizar', cargar: () => import('./views/ayuda.js') },
+  { hash: '#/servicios', etiqueta: 'Servicios', grupo: 'cotizar', cargar: () => import('./views/servicios.js') },
+  { hash: '#/ventas',    etiqueta: 'Reporte',   grupo: 'ventas',  cargar: () => import('./views/ventas.js') },
+  { hash: '#/registrar', etiqueta: 'Registrar', grupo: 'ventas',  cargar: () => import('./views/registro.js') },
+  { hash: '#/ahorro',    etiqueta: 'Tablero',   grupo: 'ventas',  cargar: () => import('./views/ahorro.js') },
+  { hash: '#/ajustes',   etiqueta: 'Ajustes',   grupo: '*',       cargar: () => import('./views/ajustes.js') },
 ];
+
+const vistas = new Map();
+const traerVista = (ruta) => {
+  if (!vistas.has(ruta.hash)) vistas.set(ruta.hash, ruta.cargar());
+  return vistas.get(ruta.hash);
+};
 
 S.cargar();
 
@@ -119,7 +119,10 @@ const controlTamano = el('div', { class: 'tamano', role: 'group', 'aria-label': 
 const btnAsistente = el('button', {
   class: 'btn btn--sm js-asistente', 'aria-expanded': 'false',
   title: 'Resuelve dudas sobre cómo usar el cotizador',
-  onclick: () => alternarAsistente(),
+  onclick: async () => {
+    const { alternarAsistente } = await import('./asistente.js');
+    alternarAsistente();
+  },
 }, icono('ayuda', 15), 'Dudas');
 
 const btnTutorial = el('button', {
@@ -129,6 +132,8 @@ const btnTutorial = el('button', {
 
 const iniciales = (empresa.nombre || 'Mundo de Interiores')
   .split(/\s+/).map((w) => w[0]).join('').slice(0, 3).toUpperCase();
+
+const acciones = el('div', { class: 'topbar__acciones' }, controlTamano, btnAsistente, btnTutorial);
 
 const topbar = el('header', { class: 'topbar' },
   el('a', { class: 'brand', href: '#/inicio', title: 'Volver a la portada' },
@@ -140,27 +145,123 @@ const topbar = el('header', { class: 'topbar' },
       el('span', { class: 'brand__name', style: 'display:block' }, empresa.nombre),
       el('span', { class: 'brand__sub', style: 'display:block' }, 'Cotizador'))),
   nav,
-  el('div', { class: 'topbar__acciones' }, controlTamano, btnAsistente, btnTutorial));
+  acciones);
+
+// --------------------------------------------------------------------------- menú de hamburguesa
+
+// En el teléfono no cabe la barra completa. Todo lo secundario vive aquí:
+// las pantallas del grupo, el cambio de camino, el tamaño de texto y la ayuda.
+const cajon = el('div', { class: 'cajon', id: 'cajon', 'aria-hidden': 'true' });
+const velo = el('div', { class: 'velo', onclick: () => cerrarMenu() });
+
+const btnMenu = el('button', {
+  class: 'hamburguesa', 'aria-label': 'Abrir el menú', 'aria-expanded': 'false',
+  'aria-controls': 'cajon',
+  onclick: () => (document.body.classList.contains('menu-abierto') ? cerrarMenu() : abrirMenu()),
+},
+  el('span', { class: 'hamburguesa__lineas', 'aria-hidden': 'true' },
+    el('i', {}), el('i', {}), el('i', {})));
+
+topbar.append(btnMenu);
+
+function abrirMenu() {
+  document.body.classList.add('menu-abierto');
+  cajon.setAttribute('aria-hidden', 'false');
+  btnMenu.setAttribute('aria-expanded', 'true');
+  cajon.querySelector('button, a')?.focus();
+}
+
+function cerrarMenu() {
+  if (!document.body.classList.contains('menu-abierto')) return;
+  document.body.classList.remove('menu-abierto');
+  cajon.setAttribute('aria-hidden', 'true');
+  btnMenu.setAttribute('aria-expanded', 'false');
+}
+
+// El cajón se arma una vez con huecos; nav y acciones se mudan a esos huecos
+// en el teléfono y regresan a la barra en la computadora. Son los mismos
+// nodos: duplicarlos dejaría dos controles de tamaño peleándose.
+const cajonTitulo = el('span', { class: 'cajon__grupo' }, 'Menú');
+const huecoNav = el('div', { class: 'cajon__lista' });
+const huecoCambio = el('div', {});
+const huecoAcciones = el('div', { class: 'cajon__pie' });
+
+cajon.append(
+  el('div', { class: 'cajon__cab' },
+    cajonTitulo,
+    el('button', { class: 'btn btn--ghost btn--icon', 'aria-label': 'Cerrar el menú', onclick: cerrarMenu },
+      icono('cerrar', 16))),
+  huecoNav,
+  huecoCambio,
+  huecoAcciones);
+
+function pintarCajon(ruta) {
+  cajonTitulo.textContent = ruta.grupo && ruta.grupo !== '*' ? GRUPOS[ruta.grupo] : 'Menú';
+
+  const otro = ruta.grupo === 'ventas' ? 'cotizar' : 'ventas';
+  huecoCambio.replaceChildren(
+    ruta.grupo && ruta.grupo !== '*'
+      ? el('button', {
+          class: 'cajon__cambio',
+          onclick: () => { location.hash = '#/inicio'; cerrarMenu(); },
+        }, icono('capas', 15), `Cambiar a ${GRUPOS[otro]}`)
+      : el('span', {}));
+}
+
+const esTelefono = window.matchMedia('(max-width: 900px)');
+
+function acomodar() {
+  if (esTelefono.matches) {
+    huecoNav.append(nav);
+    huecoAcciones.replaceChildren(
+      el('span', { class: 'cajon__etq' }, 'Tamaño del texto'),
+      acciones);
+  } else {
+    cerrarMenu();
+    // Antes del botón de menú, que se queda al final y oculto en pantalla grande.
+    topbar.insertBefore(nav, btnMenu);
+    topbar.insertBefore(acciones, btnMenu);
+  }
+}
+
+esTelefono.addEventListener('change', acomodar);
+acomodar();
+
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') cerrarMenu(); });
 
 const main = el('main', { class: 'main' });
-app.append(topbar, main);
+app.append(topbar, velo, cajon, main);
 
-function navegar() {
+// Si alguien navega dos veces seguidas, la carga lenta no debe pintar encima
+// de la pantalla nueva. Solo el último viaje tiene derecho a dibujar.
+let viaje = 0;
+
+async function navegar() {
   // El hash puede traer parámetros: #/registrar?id=vta_123
   const hash = (location.hash || '#/inicio').split('?')[0];
   const ruta = RUTAS.find((r) => r.hash === hash) ?? RUTAS[0];
+  const mio = ++viaje;
 
   pintarNav(ruta);
+  pintarCajon(ruta);
+  cerrarMenu();
   S.registrarVisita(ruta.etiqueta);
 
   main.replaceChildren();
   try {
-    ruta.vista.render(main);
+    const vista = await traerVista(ruta);
+    if (mio !== viaje) return;
+    vista.render(main);
   } catch (err) {
+    if (mio !== viaje) return;
     console.error(err);
+    // Un módulo que no baja casi siempre es la red, no el código.
+    vistas.delete(ruta.hash);
     main.append(el('div', { class: 'card' },
-      el('h2', { class: 'title' }, 'Algo se rompió al dibujar esta pantalla'),
-      el('p', { class: 'lead mt-3' }, 'Abre la consola del navegador para ver el detalle. Tus datos siguen guardados.'),
+      el('h2', { class: 'title' }, 'No se pudo abrir esta pantalla'),
+      el('p', { class: 'lead mt-3' },
+        'Revisa la conexión y vuelve a intentar. Tus datos siguen guardados en este equipo.'),
+      el('button', { class: 'btn btn--primary mt-4', onclick: navegar }, 'Reintentar'),
       el('pre', { class: 'formula mt-4' }, String(err?.stack ?? err))));
   }
   window.scrollTo({ top: 0, behavior: 'instant' });
@@ -188,7 +289,10 @@ const abrirAccion = (texto) => {
   return d;
 };
 
-function arrancarTour() {
+async function arrancarTour() {
+  const [{ iniciarTour }, { cargarEjemplo, hayDatosParaEjemplo }] =
+    await Promise.all([import('./tour.js'), import('./demo.js')]);
+
   const pasos = [
     {
       titulo: 'Bienvenido',

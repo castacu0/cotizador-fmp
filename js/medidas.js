@@ -154,7 +154,10 @@ export const medicionVacia = (nombre = '') => ({
   fecha: new Date().toISOString(),
   medidoPor: '',
   cuartos: [],
-  precioM2: null,      // null = usa el promedio de Ajustes
+  // Material elegido del catálogo. Con él, el precio deja de ser el promedio
+  // y pasa a ser el de la línea: es lo que permite decir la cifra en la casa.
+  productoId: null,
+  precioM2: null,      // null = usa el material elegido, o el promedio de Ajustes
   mermaPct: null,
   incluirInstalacion: true,
   incluirZoclo: true,
@@ -183,26 +186,50 @@ export function calcularMedicion(medicion = {}) {
  * Mientras no estén cargadas las listas de precios reales usa el promedio
  * capturado en Ajustes, y la pantalla lo dice con todas sus letras.
  */
-export function estimarMedicion(medicion, config) {
+export function estimarMedicion(medicion, config, opciones = {}) {
   const m = config?.medidor ?? {};
   const suma = calcularMedicion(medicion);
 
-  const precioM2 = num(medicion.precioM2 ?? m.precioM2, 300);
+  // El precio del material elegido gana sobre el capturado a mano, y ese gana
+  // sobre el promedio de Ajustes. Así, en cuanto entren las listas reales,
+  // el estimado deja de ser aproximado sin tocar una línea de código.
+  const precioM2 = num(opciones.precioM2 ?? medicion.precioM2 ?? m.precioM2, 300);
   const mermaPct = num(medicion.mermaPct ?? m.mermaPct, 0.1);
   const precioZocloML = num(m.precioZocloML, 145);
   const instalacionM2 = num(m.instalacionM2, 0);
+  const ivaPct = num(config?.fiscal?.iva, 0.16);
+
+  const conZoclo = medicion.incluirZoclo !== false;
+  const conInstalacion = medicion.incluirInstalacion !== false;
+
+  // Cada cuarto con su importe, para poder decir "la cocina son tantos pesos"
+  // sin salir de la pantalla de captura.
+  const cuartos = suma.cuartos.map((c) => {
+    const areaMerma = limpio(c.areaM2 * (1 + mermaPct));
+    const mat = areaMerma * precioM2;
+    const zoc = conZoclo ? c.zocloML * precioZocloML : 0;
+    const inst = conInstalacion ? c.areaM2 * instalacionM2 : 0;
+    const sub = mat + zoc + inst;
+    return { ...c, areaConMerma: areaMerma,
+             material: limpio(mat, 2), zoclo: limpio(zoc, 2), instalacion: limpio(inst, 2),
+             subtotal: limpio(sub, 2), total: limpio(sub * (1 + ivaPct), 2) };
+  });
 
   const areaConMerma = limpio(suma.areaM2 * (1 + mermaPct));
   const material = areaConMerma * precioM2;
-  const zoclo = medicion.incluirZoclo === false ? 0 : suma.zocloML * precioZocloML;
-  const instalacion = medicion.incluirInstalacion === false ? 0 : suma.areaM2 * instalacionM2;
+  const zoclo = conZoclo ? suma.zocloML * precioZocloML : 0;
+  const instalacion = conInstalacion ? suma.areaM2 * instalacionM2 : 0;
 
   const subtotal = material + zoclo + instalacion;
-  const iva = subtotal * num(config?.fiscal?.iva, 0.16);
+  const iva = subtotal * ivaPct;
 
   return {
     ...suma,
-    precioM2, mermaPct, precioZocloML, instalacionM2,
+    cuartos,
+    precioM2, mermaPct, precioZocloML, instalacionM2, ivaPct,
+    // De dónde salió el precio, para poder decirlo con todas sus letras.
+    origenPrecio: opciones.precioM2 != null ? 'material'
+                : medicion.precioM2 != null ? 'obra' : 'promedio',
     areaConMerma,
     material: limpio(material, 2),
     zoclo: limpio(zoclo, 2),
