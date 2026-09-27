@@ -454,7 +454,7 @@ function abrirEditorPartida(producto, existente = null) {
                   placeholder: '0',
                   onInput: (e) => setCampo('descuentoPct', Number(e.target.value || 0) / 100) }))),
     el('div', { class: 'mt-4' },
-      nota('Margen bruto es la parte del precio de venta que queda como utilidad, no un multiplicador sobre el costo. Un 35% de margen equivale a multiplicar el costo por 1.538.',
+      nota('Margen bruto es la parte del precio de venta que queda como utilidad. Un 35% de margen equivale a multiplicar el costo por 1.538, no por 1.35.',
            'accent', 'info')));
 
   const btnGuardar = el('button', { class: 'btn btn--primary' }, existente ? 'Guardar cambios' : 'Agregar a la cotización');

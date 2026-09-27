@@ -11,10 +11,10 @@ import { icono } from './ui.js';
 import * as S from './state.js';
 
 export const CONTACTO = {
-  nombre: 'Cesar Castañón',
+  nombre: 'Cesar Castanon A',
   email: 'cesar@castacu0.com',
-  whatsapp: '55 7882 3635',
-  whatsappE164: '5215578823635',
+  whatsapp: '+1 341 758 3854',
+  whatsappE164: '13417583854',
 };
 
 /**
@@ -237,7 +237,7 @@ export const CONOCIMIENTO = [
     tema: 'Producto',
     claves: 'spc laminado madera cual recomiendo bano cocina humedad impermeable',
     p: '¿Qué piso recomiendo para baño o cocina?',
-    r: 'SPC, que es el único cien por ciento impermeable. El laminado no lo es aunque el proveedor diga hidrorresistente: resiste un derrame limpiado a tiempo, no una fuga. Para exterior o alberca, deck WPC o porcelanato antiderrapante R11.',
+    r: 'SPC, que es el único cien por ciento impermeable. El laminado aguanta un derrame limpiado a tiempo, pero una fuga sostenida lo hincha aunque el proveedor lo llame hidrorresistente. Para exterior o alberca, deck WPC o porcelanato antiderrapante R11.',
   },
   {
     tema: 'Producto',

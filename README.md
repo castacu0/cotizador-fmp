@@ -28,7 +28,9 @@ La presentación para la dirección **no se publica aquí**: lleva precios y est
 es público. Vive en `docs/presentacion.html`, está en `.gitignore`, y se comparte por
 enlace privado.
 
-Los dos primeros están también en `Ajustes > Enlaces para el equipo`, con botón de copiar.
+Los dos primeros están también en `Ajustes > Enlaces para el equipo`, con botón de copiar
+y, en iPhone, un botón **Compartir** que abre el panel nativo de compartir directo con el
+enlace del medidor: desde ahí, *Agregar a inicio* queda a un toque, sin teclear la dirección.
 
 **Para dejarla como aplicación en el teléfono**: se abre el enlace del medidor en Safari,
 Compartir, *Agregar a inicio*. Queda a pantalla completa, sin barra del navegador. En
@@ -208,7 +210,7 @@ el navegador. Conviene hacerlo cada vez que cambien precios y el primer día de 
 
 ## Soporte
 
-Cesar Castañón · WhatsApp 55 7882 3635 · cesar@castacu0.com
+Cesar Castanon A · WhatsApp +1 341 758 3854 · cesar@castacu0.com
 
 Dentro de la aplicación, el botón **Dudas** abre un asistente con 50 respuestas cargadas,
 incluidas las de las líneas Hunter Douglas. No es un modelo de lenguaje: responde de una

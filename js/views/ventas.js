@@ -62,7 +62,7 @@ export function render(raiz) {
     !admin
       ? el('div', { class: 'mt-6' },
           nota('Estás viendo solo tus ventas. El desglose de todo el equipo lo abren Fernando, Melissa y Sebastián. ' +
-               'Es una separación por confianza, no un candado: no hay contraseñas ni servidor.', '', 'info'))
+               'Sin servidor ni contraseñas, esta separación depende de la confianza del equipo.', '', 'info'))
       : null));
 }
 

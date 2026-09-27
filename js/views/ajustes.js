@@ -146,17 +146,37 @@ function editarSucursales(s) {
  */
 function bloqueEnlaces(s) {
   const base = s.config.empresa.urlApp || location.origin + location.pathname.replace(/index\.html$/, '');
+  const urlMedidor = `${base}#/medidor`;
 
-  const enlace = (etiqueta, url, pista) => el('div', { class: 'card card--flat' },
+  const enlace = (etiqueta, url, pista, extra) => el('div', { class: 'card card--flat' },
     el('div', { class: 'row' },
       el('div', { style: 'flex:1;min-width:0' },
         el('div', { class: 'small', style: 'font-weight:600' }, etiqueta),
         el('div', { class: 'tiny truncate' }, url),
         el('div', { class: 'tiny mt-3' }, pista)),
-      el('button', { class: 'btn btn--sm', onclick: async () => {
-        try { await navigator.clipboard.writeText(url); avisar('Enlace copiado'); }
-        catch { avisar('Copia el enlace a mano desde la barra del navegador.', 'err'); }
-      } }, icono('copiar', 14), 'Copiar')));
+      el('div', { class: 'row row--tight' },
+        extra,
+        el('button', { class: 'btn btn--sm', onclick: async () => {
+          try { await navigator.clipboard.writeText(url); avisar('Enlace copiado'); }
+          catch { avisar('Copia el enlace a mano desde la barra del navegador.', 'err'); }
+        } }, icono('copiar', 14), 'Copiar'))));
+
+  // El botón de compartir hace lo que en iPhone cuesta más pasos: abre el
+  // panel nativo de compartir de una vez, con el enlace ya puesto. Desde ahí,
+  // "Agregar a inicio" queda a un toque, en vez de teclear la dirección a mano.
+  const puedeCompartir = typeof navigator.share === 'function';
+  const btnCompartir = puedeCompartir
+    ? el('button', {
+        class: 'btn btn--sm btn--primary',
+        onclick: async () => {
+          try {
+            await navigator.share({ title: 'Medidor · Mundo de Interiores', url: urlMedidor });
+          } catch (err) {
+            if (err?.name !== 'AbortError') avisar('No se pudo abrir el panel de compartir.', 'err');
+          }
+        },
+      }, icono('capas', 14), 'Compartir')
+    : null;
 
   return accion(
     { iconoNombre: 'globo', titulo: 'Enlaces para el equipo',
@@ -170,13 +190,14 @@ function bloqueEnlaces(s) {
     el('div', { class: 'stack stack-2 mt-4' },
       enlace('Aplicación completa', base,
         'Para la computadora de la oficina: cotizar, catálogo, reporte y ajustes.'),
-      enlace('Medidor para el teléfono', `${base}#/medidor`,
-        'Para quien mide en obra. Conviene agregarlo a la pantalla de inicio del teléfono.')),
+      enlace('Medidor para el teléfono', urlMedidor,
+        'Para quien mide en obra. Agrégalo a la pantalla de inicio del teléfono.', btnCompartir)),
 
     el('div', { class: 'mt-5' },
-      nota('En el iPhone: abre el enlace en Safari, toca Compartir y elige "Agregar a inicio". ' +
-           'Queda como una aplicación más, a pantalla completa y sin barra del navegador. ' +
-           'En Android es el menú de tres puntos, "Agregar a pantalla principal".', '', 'info')));
+      nota('En el iPhone: toca Compartir arriba (o Compartir del propio Safari), y elige ' +
+           '"Agregar a inicio". Queda como una aplicación más, a pantalla completa y directo al ' +
+           'medidor, sin barra del navegador. En Android es el menú de tres puntos, ' +
+           '"Agregar a pantalla principal".', '', 'info')));
 }
 
 // --------------------------------------------------------------------------- medidor de obra

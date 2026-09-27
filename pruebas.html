@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pruebas del motor de cálculo · Cotizador Mundo de Interiores</title>
-<link rel="stylesheet" href="css/app.css?v=17">
+<link rel="stylesheet" href="css/app.css?v=18">
 <style>
   .main{max-width:920px}
   .t{width:100%;border-collapse:collapse;font-size:13.5px}
@@ -579,8 +579,11 @@ P('Asistente', 'Toda respuesta tiene tema, pregunta y contenido', () => {
            esperado: `${CONOCIMIENTO.length} completas` };
 });
 P('Asistente', 'El contacto de soporte está bien formado', () => {
+  // E164 general: solo dígitos, de 8 a 15, sin fijar un país. El número de
+  // soporte cambió de México a Estados Unidos y no debería volver a romper
+  // esta prueba por eso.
   const okMail = /^[^@\s]+@[^@\s]+\.[a-z]{2,}$/.test(CONTACTO.email);
-  const okTel = /^52\d{10,12}$/.test(CONTACTO.whatsappE164);
+  const okTel = /^\d{8,15}$/.test(CONTACTO.whatsappE164);
   return { ok: okMail && okTel, obtenido: `${CONTACTO.email} · ${CONTACTO.whatsappE164}`,
            esperado: 'correo y número válidos' };
 });

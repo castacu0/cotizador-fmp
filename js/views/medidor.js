@@ -775,8 +775,8 @@ function abrirEstimado(m) {
         onChange: (v) => { S.actualizarMedicion(m.id, { incluirZoclo: v }); refrescar(); } })),
 
     el('div', { class: 'mt-5' },
-      nota('Es un estimado de campo con el precio promedio, no una cotización. Los números finos ' +
-           '(caja completa, patrón, accesorios, tiempo de entrega) salen del cotizador con el material ya elegido.',
+      nota('Estimado de campo con el precio promedio. Los números finos (caja completa, patrón, ' +
+           'accesorios, tiempo de entrega) salen del cotizador con el material ya elegido.',
            'warn', 'alerta')));
 
   pintar();
