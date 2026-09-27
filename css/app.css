@@ -712,12 +712,17 @@ a { color: var(--accent); text-underline-offset: 3px; }
 }
 
 /* En teléfono los botones del encabezado bajan debajo del texto, en vez de
-   estrujar la descripción en una columna de cinco palabras. */
+   estrujar la descripción en una columna de cinco palabras.
+   Descendiente ("view header"), no hijo directo ("view > header"): el
+   medidor mete su header un nivel más adentro que el resto de las vistas
+   (pantallaLista envuelve todo en un div sin clase), y con el combinador de
+   hijo directo esta regla nunca lo alcanzaba: el título quedaba en una
+   columna angosta, palabra por palabra. */
 @media (max-width: 620px) {
-  .view > header .row { flex-direction: column; align-items: stretch; }
-  .view > header .row > div[style*="flex:1"] { min-width: 100%; }
-  .view > header .row > .row { justify-content: flex-start; }
-  .view > header .row > .row .btn { flex: 1; }
+  .view header .row { flex-direction: column; align-items: stretch; }
+  .view header .row > div[style*="flex:1"] { min-width: 100%; }
+  .view header .row > .row { justify-content: flex-start; }
+  .view header .row > .row .btn { flex: 1; }
 }
 
 /* ======================================================== texto grande
