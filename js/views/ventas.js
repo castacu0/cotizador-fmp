@@ -5,16 +5,17 @@
 
 import { el, fmtMXN, fmtNum, fmtPct, fmtFechaCorta } from '../format.js';
 import * as S from '../state.js';
-import { icono, desplegable, selector, vacio, nota, descargarTexto } from '../ui.js';
+import { icono, desplegable, selector, vacio, nota, avisar, descargarTexto } from '../ui.js';
 import { nombreCategoria, resumenVentas, compararMes, mesesConVentas,
          etiquetaMes, mesActual, totalVenta, anticipoEsperado,
          ESTADOS, estadoVenta, ventasVisibles, esAdmin } from '../ventas.js';
 
 let mesElegido = null;
 
-// Rampa cálida. Solo distingue familias, no jerarquiza.
-const TONOS = ['#6B6055', '#857A6D', '#9E9384', '#4A6153', '#806A42', '#8C4A45',
-               '#B4A896', '#5E6B6B', '#7C7873', '#A6A29C'];
+// Rampa de grises con dos acentos de apoyo. Solo distingue familias,
+// no jerarquiza: el orden ya lo da la lista, el color es identidad.
+const TONOS = ['#2E323A', '#4A4E58', '#6B6F78', '#8C9098', '#AEB1B8',
+               '#39424D', '#5C6B63', '#7A6A5C', '#CBCDD2', '#4F5560'];
 const tono = (i) => TONOS[i % TONOS.length];
 
 export function render(raiz) {
@@ -44,7 +45,11 @@ export function render(raiz) {
                   ? 'Cuando el equipo registre ventas de este mes, aquí sale el desglose completo.'
                   : 'Registra tus ventas del mes para que aparezcan en el reporte.' },
           el('button', { class: 'btn btn--primary', onclick: () => { location.hash = '#/registrar'; } },
-            icono('mas', 15), 'Registrar una venta'))
+            icono('mas', 15), 'Registrar una venta'),
+          // Solo para quien hace la demostración: ocho ventas de muestra con
+          // precios distintos por línea y proveedor, repartidas en las tres
+          // tiendas. Así se ve el reporte antes de que exista una sola venta real.
+          admin ? el('button', { class: 'btn', onclick: cargarDemo }, icono('capas', 15), 'Cargar datos de ejemplo') : null)
       : el('div', { class: 'stack stack-6' },
           tarjetasKPI(r, comp),
           seccionEmbudo(r),
@@ -359,3 +364,14 @@ function exportarCSV(r) {
 }
 
 const redibujar = () => window.dispatchEvent(new CustomEvent('fmp:rerender'));
+
+/**
+ * El módulo de ventas de ejemplo se trae solo cuando se pide: nadie que
+ * entre a ver su reporte real debería descargar ocho ventas de utilería.
+ */
+async function cargarDemo() {
+  const { cargarVentasEjemplo } = await import('../demo-ventas.js');
+  const n = cargarVentasEjemplo();
+  avisar(`${n} ventas de ejemplo cargadas`);
+  redibujar();
+}

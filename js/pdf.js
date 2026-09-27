@@ -13,17 +13,21 @@ const ANCHO = A4.w - M * 2;          // 178 mm
 const PIE = 15;                      // franja reservada al pie
 const LIMITE = A4.h - PIE - 5;       // última línea útil
 
+// Mismo grafito frío del CSS de la app (css/app.css > :root), en RGB para
+// jsPDF. El nombre "oro" quedó del acento dorado original; hoy pinta el
+// grafito, y renombrarlo tocaría cada referencia sin cambiar una sola línea
+// de comportamiento, así que se deja así y se explica aquí.
 const C = {
-  tinta:    [28, 27, 25],
-  suave:    [124, 120, 115],
-  tenue:    [162, 158, 152],
-  linea:    [222, 219, 214],
-  oro:      [150, 112, 38],
-  oroTexto: [122, 92, 32],
-  oroSuave: [244, 235, 214],
-  oroLinea: [201, 172, 99],
-  fondo:    [243, 241, 237],
-  claro:    [250, 249, 247],
+  tinta:    [22, 23, 26],
+  suave:    [117, 119, 126],
+  tenue:    [167, 169, 175],
+  linea:    [231, 231, 234],
+  oro:      [46, 50, 58],
+  oroTexto: [46, 50, 58],
+  oroSuave: [239, 239, 242],
+  oroLinea: [214, 215, 219],
+  fondo:    [247, 247, 248],
+  claro:    [250, 250, 251],
   blanco:   [255, 255, 255],
 };
 
@@ -499,11 +503,13 @@ function tablaPartidas(L, totales, reservaCierre = 0) {
 // ---------------------------------------------------------------------------
 
 function barrasGrafica(totales) {
+  // Rampa de grafito, de más oscuro a más claro: el peso visual sigue el
+  // orden de la lista, no un código de color que haya que aprender.
   return [
-    { etiqueta: 'Material',     valor: totales.desgloseVenta.material,   color: [52, 49, 45] },
-    { etiqueta: 'Mano de obra', valor: totales.desgloseVenta.manoObra,   color: [150, 112, 38] },
-    { etiqueta: 'Confección',   valor: totales.desgloseVenta.confeccion, color: [186, 158, 106] },
-    { etiqueta: 'Accesorios',   valor: totales.desgloseVenta.accesorios, color: [212, 199, 173] },
+    { etiqueta: 'Material',     valor: totales.desgloseVenta.material,   color: [46, 50, 58] },
+    { etiqueta: 'Mano de obra', valor: totales.desgloseVenta.manoObra,   color: [92, 97, 107] },
+    { etiqueta: 'Confección',   valor: totales.desgloseVenta.confeccion, color: [140, 143, 150] },
+    { etiqueta: 'Accesorios',   valor: totales.desgloseVenta.accesorios, color: [190, 192, 197] },
   ].filter((i) => i.valor > 0.5);
 }
 

@@ -111,6 +111,12 @@ presupuesto, pago del anticipo, requisición, orden de compra (Aarón) e instala
 En cuanto la orden de compra está marcada, la pantalla dice que ya se puede pedir
 el material.
 
+**Datos de ejemplo.** Con el mes vacío, `Reporte mensual de ventas` ofrece
+**Cargar datos de ejemplo**: ocho ventas de muestra repartidas en las tres tiendas,
+con precios distintos por línea, color y proveedor (de $17,160 a $162,240) y los
+cuatro estados del semáforo a la vez. Sirve para demostrar cómo se ve el reporte
+antes de que exista una sola venta real, y no toca el catálogo de productos.
+
 **Tiendas y equipo**: tres tiendas con dos asesores cada una, seis en total. Fernando
 y Sebastián son los asesores principales y a la vez dirección. Melissa administra las
 tiendas y no aparece como asesora de venta. Se edita en `Ajustes > Equipo`.
@@ -274,6 +280,7 @@ js/
   importer.js         Lectura de Excel y CSV, mapeo de columnas
   catalog-seed.js     Catálogo de demostración
   demo.js             Cotización de ejemplo
+  demo-ventas.js      Ventas de ejemplo para el reporte mensual
   tour.js             Tutorial guiado
   ui.js               Componentes compartidos
   format.js           Formato es-MX y utilidades de DOM
