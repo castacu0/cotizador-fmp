@@ -7,6 +7,7 @@ import { CATEGORIAS, PATRONES, PLIEGUES, calcularPartida, calcularTotales,
 import { generarPDF, cargarJsPDF } from '../pdf.js';
 import { cargarEjemplo, hayDatosParaEjemplo } from '../demo.js';
 import { PLANTILLAS, armarMensaje, telefonoWhatsApp } from '../mensajes.js';
+import { abrirPortales } from '../portales.js';
 import { icono, accion, desplegable, campo, entrada, selector, casilla, pastillasToggle,
          abrirModal, cerrarModal, confirmar, avisar, vacio, nota } from '../ui.js';
 
@@ -50,6 +51,9 @@ function cabecera(s) {
           ? el('button', { class: 'btn js-ejemplo', onclick: usarEjemplo },
               icono('capas', 15), 'Cargar ejemplo')
           : el('button', { class: 'btn', onclick: nuevaCotizacion }, icono('mas', 15), 'Nueva'),
+        el('button', { class: 'btn js-hd', onclick: abrirPortales,
+                       title: 'Portales de Hunter Douglas y precio al cliente desde e-Pedidos' },
+          icono('globo', 15), 'Hunter Douglas'),
         el('button', { class: 'btn btn--primary js-pdf', onclick: exportarPDF },
           icono('pdf', 15), 'Generar PDF'))),
     s.catalogoEsDemo

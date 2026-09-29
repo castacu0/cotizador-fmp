@@ -468,6 +468,47 @@ export function calcularPartida(partida, producto, config) {
 }
 
 // ---------------------------------------------------------------------------
+// Proveedor con lista propia: Hunter Douglas
+// ---------------------------------------------------------------------------
+
+/**
+ * e-Pedidos, el portal de pedidos de Hunter Douglas, resume cada partida con
+ * dos números sin IVA: "Lista", el precio sugerido al público, y "Factura", lo
+ * que paga el distribuidor. Su renglón "Precio con IVA" es la factura con
+ * impuesto, o sea el costo de la empresa. Al cliente se le cobra la lista más
+ * IVA, y eso es lo que e-Pedidos nunca enseña. Esta función lo saca, junto con
+ * el margen real, con o sin descuento sobre la lista.
+ */
+export function calcularPrecioProveedor({ lista, factura, descuentoPct = 0, ivaPct = 0.16 }) {
+  const listaN = Math.max(0, num(lista));
+  const facturaN = Math.max(0, num(factura));
+  const desc = Math.min(Math.max(num(descuentoPct, 0), 0), 1);
+  const iva = Math.max(0, num(ivaPct, 0.16));
+
+  // Lo que cobra la empresa, sin IVA y ya con el descuento que dio el vendedor.
+  const precioVenta = listaN * (1 - desc);
+  const ivaVenta = precioVenta * iva;
+  const precioConIva = precioVenta + ivaVenta;
+
+  // Lo que e-Pedidos enseña como "Precio con IVA": el costo con impuesto.
+  const costoConIva = facturaN * (1 + iva);
+
+  const utilidad = precioVenta - facturaN;
+  const margen = precioVenta > 0 ? utilidad / precioVenta : 0;
+  const descuentoDistribuidor = listaN > 0 ? 1 - facturaN / listaN : 0;
+
+  // Si el vendedor cobra el precio de venta como si ya trajera IVA, el impuesto
+  // se entera igual y sale de la utilidad. Esto es lo que se deja de ganar.
+  const perdidaSiCobraSinIva = precioVenta - precioVenta / (1 + iva);
+
+  return {
+    lista: listaN, factura: facturaN, descuentoPct: desc, ivaPct: iva,
+    precioVenta, ivaVenta, precioConIva, costoConIva,
+    utilidad, margen, descuentoDistribuidor, perdidaSiCobraSinIva,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Totales de la cotización
 // ---------------------------------------------------------------------------
 

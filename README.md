@@ -155,7 +155,9 @@ a la portada.
 1. **Medir**: levantamiento en obra con el teclado numérico, importación de notas
    y estimado de campo.
 2. **Cotizar**: busca el material, captura las medidas, marca accesorios, descarga el PDF.
-   Al terminar se abre el centro de envío con nueve plantillas de seguimiento.
+   Al terminar se abre el centro de envío con nueve plantillas de seguimiento. El botón
+   **Hunter Douglas** abre los portales del distribuidor y trae la calculadora de precio
+   al cliente (ver abajo).
 3. **Catálogo**: alta, edición y búsqueda de materiales. Cambio de precios por familia.
    Cada material trae su nombre en inglés, visible y buscable. Exporta a CSV.
 4. **Ayuda**: fórmulas explicadas y material de capacitación para el equipo de ventas.
@@ -171,7 +173,8 @@ a la portada.
 **Siempre**
 
 9. **Ajustes**: quién usa la computadora, equipo y permisos, supuestos del medidor,
-   datos de la empresa, margen, IVA, tipo de cambio, tarifas e importación del catálogo.
+   portales de Hunter Douglas, datos de la empresa, margen, IVA, tipo de cambio, tarifas
+   e importación del catálogo.
 
 En el teléfono la barra se reduce al logotipo y un botón de menú: ahí dentro están las
 pantallas del camino en curso, el cambio al otro camino, el control **A− / A+**, **Dudas**
@@ -197,6 +200,25 @@ Hay una plantilla CSV descargable en esa misma pantalla.
 
 ---
 
+## Hunter Douglas
+
+El producto Hunter Douglas se configura y se pide en los portales del distribuidor, que
+son tres: **e-Pedidos MX** (cotizador y pedidos), **My HunterDouglas** (listas de precios,
+fichas y herramientas) y el **LMS** (capacitación). El botón **Hunter Douglas** de
+`Cotizar` los abre en pestaña nueva; las direcciones se editan en
+`Ajustes > Portales de Hunter Douglas`. La aplicación guarda solo direcciones: el usuario
+y la contraseña se teclean en el portal, nunca aquí.
+
+El resumen de precios de e-Pedidos trae **Lista** y **Factura** sin IVA, y un renglón
+**Precio con IVA** que es la factura con impuesto, o sea lo que paga la empresa. Al
+cliente se le cobra la lista más IVA, y ese número el portal no lo enseña. El mismo botón
+trae una calculadora: se capturan Lista y Factura tal como aparecen y sale el precio al
+cliente con IVA, la utilidad y el margen real, con el mismo semáforo del cotizador.
+
+Es el primer paso de la fase 3. Lo que sigue está en *Lo que sigue*.
+
+---
+
 ## Respaldo
 
 `Ajustes > Respaldo del catálogo > Guardar respaldo` descarga un archivo con todo:
@@ -212,7 +234,7 @@ el navegador. Conviene hacerlo cada vez que cambien precios y el primer día de 
 
 Cesar Castanon A · WhatsApp +1 341 758 3854 · cesar@castacu0.com
 
-Dentro de la aplicación, el botón **Dudas** abre un asistente con 50 respuestas cargadas,
+Dentro de la aplicación, el botón **Dudas** abre un asistente con 51 respuestas cargadas,
 incluidas las de las líneas Hunter Douglas. No es un modelo de lenguaje: responde de una
 base de conocimiento curada y, cuando no tiene la respuesta, ofrece el contacto directo
 en vez de inventar.
@@ -258,6 +280,18 @@ Pendiente de la migración que se acordó con la dirección:
   reporte de ventas dejen de usar promedios.
 - Cuentas reales por persona, que reemplacen la separación por confianza de hoy.
 
+Fase 3, Hunter Douglas dentro del cotizador, por orden:
+
+- Partida Hunter Douglas en la cotización: el vendedor pega descripción, código y los dos
+  precios de e-Pedidos, y la partida entra al PDF con IVA, margen en vivo y semáforo.
+- Dos precios por producto en el motor: precio de venta fijado por el proveedor y costo de
+  factura. Hoy el margen se calcula como `costo / (1 − margen)`, y con eso una partida de
+  Hunter Douglas saldría por debajo de su lista.
+- Listas de precios de Hunter Douglas en el catálogo, importadas de My HunterDouglas, con
+  precio por rango de medida.
+- Ninguna integración automática con los portales de Hunter Douglas sin acuerdo escrito
+  con ellos: se rompe con cada cambio suyo y pone en riesgo la cuenta del distribuidor.
+
 **Nunca subas precios reales a un repositorio público.** El catálogo con costos y márgenes
 se carga desde el navegador de cada quien, no se guarda en el código.
 
@@ -278,6 +312,7 @@ js/
   pdf.js              Generación del PDF por flujo, tope estricto de 3 páginas
   mensajes.js         Plantillas de envío y seguimiento
   asistente.js        Asistente de dudas y contacto de soporte
+  portales.js         Portales de Hunter Douglas y precio al cliente desde e-Pedidos
   catalog-extra.js    Ampliación del catálogo de demostración
   importer.js         Lectura de Excel y CSV, mapeo de columnas
   catalog-seed.js     Catálogo de demostración
@@ -290,8 +325,8 @@ js/
                       ahorro, servicios, ayuda y ajustes
 manifest.webmanifest  Para instalarla en el teléfono
 assets/icono.svg      Icono de la aplicación
-pruebas.html          148 pruebas: cálculo, importación, buscador, medidas,
-                      estimado, ventas, semáforo y tiendas
+pruebas.html          157 pruebas: cálculo, importación, buscador, medidas,
+                      estimado, ventas, semáforo, tiendas y precio de proveedor
 servidor-dev.py       Servidor local sin caché para desarrollo
 vendor/               jsPDF y SheetJS, incluidos localmente
 ```

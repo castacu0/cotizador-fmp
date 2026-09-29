@@ -319,6 +319,12 @@ export const CONOCIMIENTO = [
   },
   {
     tema: 'Hunter Douglas',
+    claves: 'epedidos e-pedidos pedidos portal my hunterdouglas lms entro cotizar lista factura precio con iva distribuidor boton',
+    p: '¿Dónde cotizo un producto Hunter Douglas y qué precio le doy al cliente?',
+    r: 'Se cotiza en e-Pedidos MX, el portal de pedidos del distribuidor. My HunterDouglas tiene las listas de precios y las fichas, y el LMS la capacitación. Los tres se abren desde el botón Hunter Douglas de Cotizar, y las direcciones se editan en Ajustes. Ojo con el resumen de e-Pedidos: "Lista" es el precio al público sin IVA, "Factura" es lo que paga la empresa, y su "Precio con IVA" es esa factura con impuesto. Al cliente se le cobra la lista más IVA. Si cobras la lista como si ya trajera IVA, ese 16% sale de la utilidad. El mismo botón trae la calculadora: capturas lista y factura y te da el precio con IVA y el margen.',
+  },
+  {
+    tema: 'Hunter Douglas',
     claves: 'medidas levantamiento medir ventana mal medida error fabricacion',
     p: '¿Cómo evito un error de medidas en producto a medida?',
     r: 'Un producto hecho a medida no se devuelve. Tres reglas: mide siempre en tres puntos (arriba, en medio y abajo) y usa la menor si va dentro del vano; anota si la instalación es dentro o fuera del vano, porque cambia el cálculo; y confirma escuadre, porque un vano fuera de escuadra deja luz por los lados. Si el levantamiento lo hizo el cliente, déjalo por escrito en la cotización: la aplicación ya imprime esa condición en el anexo.',

@@ -7,6 +7,7 @@ import { leerArchivo, sugerirMapeo, mapearFilas, plantillaCSV } from '../importe
 import { asesoresDe, plantillaPorSucursal } from '../ventas.js';
 import { icono, accion, campo, entrada, selector, casilla, abrirModal, cerrarModal,
          confirmar, avisar, nota, descargarTexto } from '../ui.js';
+import { urlSegura } from '../portales.js';
 
 export function render(raiz) {
   const s = S.obtener();
@@ -26,6 +27,7 @@ export function render(raiz) {
       bloqueEquipo(s),
       bloqueMedidor(s),
       bloqueEnlaces(s),
+      bloquePortales(s),
       bloqueEmpresa(s),
       bloqueComercial(s),
       bloqueTarifas(s),
@@ -198,6 +200,52 @@ function bloqueEnlaces(s) {
            '"Agregar a inicio". Queda como una aplicación más, a pantalla completa y directo al ' +
            'medidor, sin barra del navegador. En Android es el menú de tres puntos, ' +
            '"Agregar a pantalla principal".', '', 'info')));
+}
+
+// --------------------------------------------------------------------------- portales de Hunter Douglas
+
+/**
+ * A dónde entra el equipo para cotizar producto Hunter Douglas. Hoy son tres
+ * marcadores en el navegador de una sola persona; aquí quedan a la vista de
+ * todos y se abren desde Cotizar. Solo direcciones: el usuario y la contraseña
+ * se teclean en el portal, nunca en esta aplicación.
+ */
+function bloquePortales(s) {
+  const portales = s.config.portales ?? [];
+  const conDireccion = portales.filter((p) => urlSegura(p.url)).length;
+  const cambiar = (i, valor) => {
+    S.guardarPortales(portales.map((p, j) => (j === i ? { ...p, url: valor } : p)));
+    // Se redibuja solo este bloque, abierto, para que el botón Abrir aparezca
+    // en cuanto se captura la dirección, sin recargar toda la pantalla.
+    const nuevo = bloquePortales(S.obtener());
+    nuevo.open = true;
+    bloque.replaceWith(nuevo);
+  };
+
+  const bloque = accion(
+    { iconoNombre: 'globo', titulo: 'Portales de Hunter Douglas',
+      pista: `${conDireccion} de ${portales.length} con dirección. Se abren desde el botón Hunter Douglas de Cotizar` },
+
+    el('div', { class: 'stack stack-2' },
+      ...portales.map((p, i) => el('div', { class: 'card card--flat' },
+        el('div', { class: 'row' },
+          el('div', { style: 'flex:1;min-width:0' },
+            el('div', { class: 'small', style: 'font-weight:600' }, p.nombre),
+            el('div', { class: 'tiny mt-3' }, p.para ?? '')),
+          urlSegura(p.url)
+            ? el('a', { class: 'btn btn--sm', href: p.url, target: '_blank', rel: 'noopener noreferrer' },
+                icono('globo', 14), 'Abrir')
+            : el('span', { class: 'pill pill--outline pill--sm' }, 'Sin dirección')),
+        el('div', { class: 'mt-3' },
+          campo({ etiqueta: 'Dirección',
+                  pista: urlSegura(p.url) ? null : 'Cópiala de la barra del navegador estando dentro del portal' },
+            entrada({ valor: p.url ?? '', tipo: 'url', placeholder: 'https://',
+              onChange: (e) => cambiar(i, e.target.value.trim()) })))))),
+
+    el('div', { class: 'mt-5' },
+      nota('Aquí solo se guardan direcciones. El usuario y la contraseña del distribuidor se teclean ' +
+           'en el portal de Hunter Douglas, nunca en esta aplicación.', '', 'info')));
+  return bloque;
 }
 
 // --------------------------------------------------------------------------- medidor de obra

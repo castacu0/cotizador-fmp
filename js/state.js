@@ -34,6 +34,19 @@ export const CONFIG_DEFAULT = {
     garantiaAnios: 10,
   },
   logistica: { diasTransito: 35, diasAduana: 7, diasInstalacionM2: 25 },
+  // Portales de Hunter Douglas a los que entra el equipo para cotizar, pedir y
+  // capacitarse. Solo direcciones: el usuario y la contraseña se teclean allá,
+  // nunca aquí. Se editan en Ajustes > Portales de Hunter Douglas.
+  portales: [
+    { id: 'hd-epedidos', nombre: 'e-Pedidos MX', url: 'https://epedidosmx.hdlao.com/',
+      para: 'Cotizar la partida y levantar el pedido. Es el configurador con el resumen de precios.' },
+    { id: 'hd-my', nombre: 'My HunterDouglas', url: 'https://my.hunterdouglas.com.mx/',
+      para: 'Portal del distribuidor: listas de precios, fichas técnicas y herramientas.' },
+    { id: 'hd-lms', nombre: 'LMS HunterDouglas', url: '',
+      para: 'Capacitación en línea. Falta capturar la dirección desde el marcador del navegador.' },
+    { id: 'hd-web', nombre: 'Catálogos públicos', url: 'https://www.hunterdouglas.com.mx/',
+      para: 'Catálogo de productos, brochure PowerView y Tendencias, en línea o en PDF por correo.' },
+  ],
   // Tres tiendas, dos asesores en cada una. Se editan en Ajustes.
   sucursales: ['Santa Fe', 'Pedregal', 'Tercera tienda'],
   // Quién es quién. El rol decide qué ve cada persona en el reporte de ventas.
@@ -554,6 +567,13 @@ export function guardarSucursales(sucursales) {
   const limpias = sucursales.map((s) => String(s).trim()).filter(Boolean);
   actualizar((s) => { s.config.sucursales = limpias; });
   registrar('Cambio de sucursales', limpias.join(', ') || 'ninguna');
+}
+
+export function guardarPortales(portales) {
+  const limpios = portales.map((p) => ({ ...p, url: String(p.url ?? '').trim() }));
+  actualizar((s) => { s.config.portales = limpios; });
+  registrar('Cambio de portales',
+    limpios.filter((p) => p.url).map((p) => p.nombre).join(', ') || 'ninguno con dirección');
 }
 
 export function actualizarConfig(ruta, valor) {
