@@ -217,16 +217,18 @@ cliente se le cobra la lista más IVA, y ese número el portal no lo enseña. El
 trae una calculadora: se capturan Lista y Factura tal como aparecen y sale el precio al
 cliente con IVA, la utilidad y el margen real, con el mismo semáforo del cotizador.
 
-**Partida Hunter Douglas.** En `Cotizar`, el botón **Partida Hunter Douglas** mete a la
-cotización un producto ya configurado en e-Pedidos. Se copia lo que dice su resumen:
-descripción, códigos, medidas en milímetros, piezas, precio de lista y factura por pieza.
-El precio de venta lo fija la lista, así que el margen se deduce en vez de aplicarse, y
-el margen por defecto de Ajustes no interviene. Un descuento al cliente baja el margen y
-deja el costo igual. Si la instalación la hace la empresa, se suma con la tarifa por
-pieza y sí lleva el margen por defecto. En el PDF salen la descripción, la medida, la
-cantidad, el precio de lista, el código en el anexo técnico y la condición de fabricación
-a la medida; la factura y el margen nunca se imprimen. El ejemplo de `Cargar ejemplo`
-trae una partida así, con precios inventados.
+**Partida de proveedor.** En `Cotizar`, el botón **Partida de proveedor** mete a la
+cotización un producto ya configurado en el portal del proveedor. Hunter Douglas viene
+por defecto y el nombre se cambia para cualquier otro proveedor que fije su lista. Se
+copia lo que dice el resumen de e-Pedidos: descripción, códigos, medidas en milímetros,
+piezas, precio de lista y factura por pieza. El precio de venta lo fija la lista, así que
+el margen se deduce en vez de aplicarse, y el margen por defecto de Ajustes no interviene.
+Un descuento al cliente baja el margen y deja el costo igual. La instalación viene
+marcada porque la hace la empresa con su cuadrilla cuando llega el material: se suma con
+la tarifa por pieza y sí lleva el margen por defecto. En el PDF salen la descripción, la
+medida, la cantidad, el precio de lista, el fabricante, el código en el anexo técnico y la
+condición de fabricación a la medida; la factura y el margen nunca se imprimen. El
+ejemplo de `Cargar ejemplo` trae una partida así, con precios inventados.
 
 **Documentos.** Hunter Douglas entrega las listas de precios solo en PDF. La pestaña
 `Documentos` los guarda una vez y los abre dentro de la aplicación, con buscador, tipo
@@ -305,10 +307,12 @@ Fase 3, Hunter Douglas dentro del cotizador. Ya están la partida Hunter Douglas
 precio fijado por el proveedor en el motor, los portales, la calculadora y los documentos
 en PDF. Lo que falta, por orden:
 
-- Listas de precios de Hunter Douglas en el catálogo, leídas de los PDF de My
-  HunterDouglas, con precio de lista y factura por producto y por rango de medida. El
-  motor ya acepta precio fijado por el proveedor; falta el importador y el motor por
-  rango de ancho y alto.
+- Listas de precios de Hunter Douglas en el catálogo. Son unos 20 PDF de 19 a 25
+  páginas: persianas por tipo, accesorios y motores. El camino corto es convertirlos una
+  vez, fuera de la aplicación, a la hoja `Apartado · Proveedor · Código · Línea · Color ·
+  Bisel` que ya lee el importador, con precio de lista y factura por producto. Lo que sí
+  falta en el motor es el precio por rango de ancho y alto, que es como vienen las
+  persianas a la medida. El precio fijado por el proveedor ya está.
 - Los documentos compartidos entre computadoras, junto con el catálogo, cuando exista la
   base de datos de la fase 2.
 - Ninguna integración automática con los portales de Hunter Douglas sin acuerdo escrito

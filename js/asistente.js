@@ -327,7 +327,7 @@ export const CONOCIMIENTO = [
     tema: 'Hunter Douglas',
     claves: 'partida hunter douglas cotizacion pdf agregar meter producto epedidos lista factura configurado copiar resumen',
     p: '¿Cómo meto un producto Hunter Douglas a la cotización y al PDF?',
-    r: 'En Cotizar, botón "Partida Hunter Douglas" (también está dentro del botón Hunter Douglas). Configura el producto en e-Pedidos como siempre y copia lo que dice su resumen: descripción, códigos, medidas en milímetros, piezas, precio de lista y factura por pieza. La partida entra al PDF con la descripción, la medida, la cantidad y el precio de lista más IVA; la factura y el margen se quedan en la aplicación. Si la instalación la hace la empresa, marca la casilla y se suma con la tarifa por pieza y el margen de Ajustes. El descuento al cliente baja el margen, nunca el costo.',
+    r: 'En Cotizar, botón "Partida de proveedor" (también está dentro del botón Hunter Douglas, que ya trae Hunter Douglas como proveedor). Configura el producto en e-Pedidos como siempre y copia lo que dice su resumen: descripción, códigos, medidas en milímetros, piezas, precio de lista y factura por pieza. La partida entra al PDF con la descripción, la medida, la cantidad y el precio de lista más IVA; la factura y el margen se quedan en la aplicación. La instalación viene marcada porque la hace la empresa: se suma con la tarifa por pieza y el margen de Ajustes. El descuento al cliente baja el margen, nunca el costo. Sirve igual para cualquier otro proveedor con lista propia: solo cambia el nombre.',
   },
   {
     tema: 'Hunter Douglas',

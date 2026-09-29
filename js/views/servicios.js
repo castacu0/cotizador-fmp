@@ -92,8 +92,8 @@ const INCLUIDO = [
     estado: 'Activo',
   },
   {
-    icono: 'cortina', titulo: 'Partida Hunter Douglas',
-    detalle: 'El producto se configura en e-Pedidos como siempre y se copia su resumen: descripción, códigos, medidas, precio de lista y factura. Entra al PDF con la lista más IVA, con margen en vivo y semáforo; la factura nunca se imprime. La instalación se suma aparte con la tarifa de la empresa.',
+    icono: 'cortina', titulo: 'Partida de proveedor con lista propia',
+    detalle: 'Para Hunter Douglas y cualquier otro proveedor que fije el precio. El producto se configura en su portal como siempre y se copia el resumen: descripción, códigos, medidas, precio de lista y factura. Entra al PDF con la lista más IVA, con margen en vivo y semáforo; la factura nunca se imprime. La instalación, que la hace la empresa, se suma con su tarifa y su margen.',
     estado: 'Activo',
   },
   {

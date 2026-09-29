@@ -52,7 +52,7 @@ function cabecera(s) {
               icono('capas', 15), 'Cargar ejemplo')
           : el('button', { class: 'btn', onclick: nuevaCotizacion }, icono('mas', 15), 'Nueva'),
         el('button', { class: 'btn js-hd',
-                       onclick: () => abrirPortales({ alAgregarPartida: () => abrirEditorProveedor() }),
+                       onclick: () => abrirPortales({ alAgregarPartida: () => abrirEditorProveedor(null, { proveedor: 'Hunter Douglas' }) }),
                        title: 'Portales de Hunter Douglas, partida nueva y precio al cliente desde e-Pedidos' },
           icono('globo', 15), 'Hunter Douglas'),
         el('button', { class: 'btn btn--primary js-pdf', onclick: exportarPDF },
@@ -232,8 +232,8 @@ function seccionPartidas() {
         el('h2', { class: 'title mt-3' }, 'Detalle de la cotización')),
       el('button', {
         class: 'btn btn--sm js-partida-hd', onclick: () => abrirEditorProveedor(),
-        title: 'Agrega un producto ya configurado en e-Pedidos, con su precio de lista y su factura',
-      }, icono('cortina', 14), 'Partida Hunter Douglas')),
+        title: 'Hunter Douglas u otro proveedor con lista propia: el producto ya configurado en su portal, con precio de lista y factura',
+      }, icono('cortina', 14), 'Partida de proveedor')),
     cont);
 }
 
@@ -245,7 +245,7 @@ function refrescarPartidas() {
   if (!s.cotizacion.partidas.length) {
     cont.replaceChildren(el('div', { class: 'card card--quiet' },
       vacio({ iconoNombre: 'caja', titulo: 'Todavía no hay partidas',
-              mensaje: 'Busca un material arriba y captura las medidas, o agrega una partida Hunter Douglas con los precios de e-Pedidos. Cada partida calcula su propia merma, cajas y accesorios.' })));
+              mensaje: 'Busca un material arriba y captura las medidas, o agrega una partida de proveedor con los precios de e-Pedidos. Cada partida calcula su propia merma, cajas y accesorios.' })));
     refrescarResumen();
     return;
   }
@@ -549,20 +549,30 @@ function tarjetasPreview(c, p) {
 
 // --------------------------------------------------------------------------- partida de proveedor
 
+/** Proveedores con lista propia ya usados, para no teclearlos de memoria. */
+function proveedoresConocidos(s) {
+  const nombres = new Set(['Hunter Douglas']);
+  for (const p of s.cotizacion.partidas) if (p.proveedor) nombres.add(p.proveedor);
+  for (const v of s.ventas ?? []) for (const l of v.lineas ?? []) if (l.proveedor) nombres.add(l.proveedor);
+  return [...nombres];
+}
+
 /**
- * Producto que ya se configuró en e-Pedidos. El vendedor copia lo que dice el
- * resumen: descripción, códigos, medidas, lista y factura. La lista es el
- * precio al cliente; la factura es el costo y nunca se imprime.
+ * Producto que ya se configuró en el portal del proveedor, Hunter Douglas u
+ * otro con lista propia. El vendedor copia lo que dice el resumen: descripción,
+ * códigos, medidas, lista y factura. La lista es el precio al cliente; la
+ * factura es el costo y nunca se imprime. La instalación viene marcada porque
+ * la hace la empresa con su propia cuadrilla cuando llega el material.
  */
-function abrirEditorProveedor(existente = null) {
+function abrirEditorProveedor(existente = null, { proveedor = 'Hunter Douglas' } = {}) {
   const s = S.obtener();
   const tarifa = s.config.tarifas.instalacionPersianaPza;
   const borrador = existente ? { ...existente } : {
-    id: uid('pt'), tipo: 'proveedor', proveedor: 'Hunter Douglas',
+    id: uid('pt'), tipo: 'proveedor', proveedor,
     descripcion: '', codigo: '', detalle: '',
     anchoMm: '', altoMm: '', cantidad: 1,
     lista: '', factura: '', diasEntrega: s.config.logistica.diasProveedor ?? 21,
-    incluirInstalacion: false, descuentoPct: 0, margenOverride: null,
+    incluirInstalacion: true, descuentoPct: 0, margenOverride: null,
   };
 
   const preview = el('div', {});
@@ -587,13 +597,18 @@ function abrirEditorProveedor(existente = null) {
   });
 
   const formulario = el('div', { class: 'stack stack-4' },
-    nota('Configura el producto en e-Pedidos como siempre y copia aquí lo que dice su resumen. La partida entra al PDF ' +
-         'con el precio de lista más IVA. La factura y el margen nunca se imprimen.', 'accent', 'info'),
+    nota('Configura el producto en el portal del proveedor como siempre y copia aquí lo que dice su resumen. La partida ' +
+         'entra al PDF con el precio de lista más IVA. La factura y el margen nunca se imprimen.', 'accent', 'info'),
+    el('datalist', { id: 'lista-proveedores-partida' },
+      ...proveedoresConocidos(s).map((n) => el('option', { value: n }))),
     el('div', { class: 'grid-2' },
+      campo({ etiqueta: 'Proveedor', pista: 'Quien fabrica y fija el precio de lista. Sale en el PDF como fabricante' },
+        texto('proveedor', { placeholder: 'Hunter Douglas', list: 'lista-proveedores-partida',
+                             title: 'Hunter Douglas u otro proveedor con lista de precios propia' })),
       campo({ etiqueta: 'Descripción para el PDF', pista: 'Familia, línea, colección y color, como debe leerlo el cliente' },
         texto('descripcion', { placeholder: 'Duette 20 mm Classic Room Darkening, Desert Sands',
                                title: 'Es el nombre de la partida en la cotización y en el PDF' })),
-      campo({ etiqueta: 'Códigos de e-Pedidos', pista: 'Los que muestra el resumen: línea, colección y color' },
+      campo({ etiqueta: 'Códigos del proveedor', pista: 'Los que muestra el resumen de e-Pedidos: línea, colección y color' },
         texto('codigo', { placeholder: 'C20 · D7 · D7955', title: 'Salen en el anexo técnico del PDF, para que el pedido cuadre' })),
       campo({ etiqueta: 'Detalle', pista: 'Accionamiento, lado del control, instalación y opcionales, separados por coma' },
         texto('detalle', { placeholder: 'Motorizada PowerView Gen3, control derecho, dentro de marco',
@@ -611,11 +626,11 @@ function abrirEditorProveedor(existente = null) {
         numero('diasEntrega', { paso: '1', min: '1', title: 'Días naturales de fabricación y entrega. Manda la partida más lenta' }))),
 
     accion({ iconoNombre: 'capas', titulo: 'Instalación y descuento', abierto: true,
-             pista: 'La instalación va aparte del precio de lista' },
+             pista: 'La instalación la hace la empresa cuando llega el material; va aparte del precio de lista' },
       el('hr', { class: 'rule mt-0' }),
       el('div', { class: 'grid-2' },
         casilla({ marcado: borrador.incluirInstalacion, texto: `Instalación por ${s.config.empresa.nombre}`,
-                  pista: `${fmtMXN(tarifa)} por pieza con cargo mínimo por visita, vendida con el margen de la empresa`,
+                  pista: `${fmtMXN(tarifa)} por pieza con cargo mínimo por visita, vendida con el margen de la empresa. Desmárcala solo si el cliente instala por su cuenta`,
                   onChange: (v) => set('incluirInstalacion', v) }),
         campo({ etiqueta: 'Descuento al cliente', sufijo: '%', pista: 'Sobre el precio de lista. Baja el margen; el costo se queda igual' },
           entrada({ valor: borrador.descuentoPct * 100 || '', tipo: 'number', paso: '1', min: '0', max: '50', numero: true,
@@ -628,6 +643,7 @@ function abrirEditorProveedor(existente = null) {
     const limpio = {
       ...borrador,
       productoId: undefined,
+      proveedor: String(borrador.proveedor ?? '').trim() || 'Hunter Douglas',
       descripcion: String(borrador.descripcion ?? '').trim(),
       codigo: String(borrador.codigo ?? '').trim(),
       detalle: String(borrador.detalle ?? '').trim(),
@@ -640,12 +656,12 @@ function abrirEditorProveedor(existente = null) {
     else S.agregarPartida(limpio);
     cerrarModal();
     refrescarPartidas();
-    avisar(existente ? 'Partida actualizada' : 'Partida Hunter Douglas agregada');
+    avisar(existente ? 'Partida actualizada' : `Partida ${limpio.proveedor} agregada`);
   };
 
   abrirModal(
-    { titulo: existente ? 'Partida Hunter Douglas' : 'Nueva partida Hunter Douglas', ancho: true,
-      subtitulo: 'Producto configurado en e-Pedidos. Precio de lista al cliente, factura como costo.' },
+    { titulo: existente ? `Partida ${borrador.proveedor || 'de proveedor'}` : `Nueva partida ${borrador.proveedor || 'de proveedor'}`, ancho: true,
+      subtitulo: 'Producto configurado en el portal del proveedor. Precio de lista al cliente, factura como costo.' },
     el('div', { class: 'stack stack-5' },
       formulario,
       el('div', {},
