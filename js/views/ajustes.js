@@ -451,7 +451,11 @@ function bloqueComercial(s) {
       campo({ etiqueta: 'Rendimiento de instalación', sufijo: 'm²/día',
               pista: 'Para estimar la fecha de terminación' },
         entrada({ valor: l.diasInstalacionM2, tipo: 'number', paso: '1', min: '1', numero: true,
-                  onChange: guardarEn('logistica.diasInstalacionM2') }))),
+                  onChange: guardarEn('logistica.diasInstalacionM2') })),
+      campo({ etiqueta: 'Entrega de Hunter Douglas', sufijo: 'días',
+              pista: 'Fabricación a la medida. Cada partida puede traer su propio plazo' },
+        entrada({ valor: l.diasProveedor ?? 21, tipo: 'number', paso: '1', min: '1', numero: true,
+                  onChange: guardarEn('logistica.diasProveedor') }))),
     el('div', { class: 'mt-4' },
       nota(`Con estos valores, un producto importado con 30 días de fábrica se compromete a ${30 + l.diasTransito + l.diasAduana} días naturales desde el anticipo.`,
            'accent', 'reloj')));

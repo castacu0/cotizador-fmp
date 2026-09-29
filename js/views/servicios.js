@@ -92,6 +92,21 @@ const INCLUIDO = [
     estado: 'Activo',
   },
   {
+    icono: 'cortina', titulo: 'Partida Hunter Douglas',
+    detalle: 'El producto se configura en e-Pedidos como siempre y se copia su resumen: descripción, códigos, medidas, precio de lista y factura. Entra al PDF con la lista más IVA, con margen en vivo y semáforo; la factura nunca se imprime. La instalación se suma aparte con la tarifa de la empresa.',
+    estado: 'Activo',
+  },
+  {
+    icono: 'globo', titulo: 'Portales y calculadora de Hunter Douglas',
+    detalle: 'Un botón abre e-Pedidos, My HunterDouglas, el LMS y los catálogos en pestaña nueva. La calculadora toma "Lista" y "Factura" tal como los muestra e-Pedidos y da el precio al cliente con IVA, la utilidad y el margen real. Las direcciones se editan en Ajustes; las contraseñas nunca se guardan.',
+    estado: 'Activo',
+  },
+  {
+    icono: 'pdf', titulo: 'Documentos del proveedor en PDF',
+    detalle: 'Listas de precios, fichas técnicas y catálogos se suben una vez y se abren sin salir de la aplicación, con buscador, tipo y nota por documento. Viven en el navegador de cada computadora, como las fotos de obra.',
+    estado: 'Activo',
+  },
+  {
     icono: 'ayuda', titulo: 'Asistente de dudas',
     detalle: `Responde al instante las preguntas más comunes sobre cómo usar la herramienta, cómo calcula y qué recomendar. Trae ${CONOCIMIENTO.length} respuestas cargadas y, cuando no tiene una, pasa el contacto de soporte en vez de inventar.`,
     estado: 'Activo',

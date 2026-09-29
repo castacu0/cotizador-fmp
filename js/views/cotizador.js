@@ -3,7 +3,7 @@
 import { el, $, fmtMXN, fmtMXNLargo, fmtNum, fmtFecha, sumarDias, uid } from '../format.js';
 import * as S from '../state.js';
 import { CATEGORIAS, PATRONES, PLIEGUES, calcularPartida, calcularTotales,
-         estimarPerimetro, leadTimeProducto, precioBaseMXN } from '../pricing.js';
+         estimarPerimetro, leadTimeProducto, precioBaseMXN, productoDePartida } from '../pricing.js';
 import { generarPDF, cargarJsPDF } from '../pdf.js';
 import { cargarEjemplo, hayDatosParaEjemplo } from '../demo.js';
 import { PLANTILLAS, armarMensaje, telefonoWhatsApp } from '../mensajes.js';
@@ -51,8 +51,9 @@ function cabecera(s) {
           ? el('button', { class: 'btn js-ejemplo', onclick: usarEjemplo },
               icono('capas', 15), 'Cargar ejemplo')
           : el('button', { class: 'btn', onclick: nuevaCotizacion }, icono('mas', 15), 'Nueva'),
-        el('button', { class: 'btn js-hd', onclick: abrirPortales,
-                       title: 'Portales de Hunter Douglas y precio al cliente desde e-Pedidos' },
+        el('button', { class: 'btn js-hd',
+                       onclick: () => abrirPortales({ alAgregarPartida: () => abrirEditorProveedor() }),
+                       title: 'Portales de Hunter Douglas, partida nueva y precio al cliente desde e-Pedidos' },
           icono('globo', 15), 'Hunter Douglas'),
         el('button', { class: 'btn btn--primary js-pdf', onclick: exportarPDF },
           icono('pdf', 15), 'Generar PDF'))),
@@ -228,7 +229,11 @@ function seccionPartidas() {
     el('div', { class: 'section__head' },
       el('div', { class: 'grow' },
         el('p', { class: 'eyebrow' }, 'Partidas'),
-        el('h2', { class: 'title mt-3' }, 'Detalle de la cotización'))),
+        el('h2', { class: 'title mt-3' }, 'Detalle de la cotización')),
+      el('button', {
+        class: 'btn btn--sm js-partida-hd', onclick: () => abrirEditorProveedor(),
+        title: 'Agrega un producto ya configurado en e-Pedidos, con su precio de lista y su factura',
+      }, icono('cortina', 14), 'Partida Hunter Douglas')),
     cont);
 }
 
@@ -240,7 +245,7 @@ function refrescarPartidas() {
   if (!s.cotizacion.partidas.length) {
     cont.replaceChildren(el('div', { class: 'card card--quiet' },
       vacio({ iconoNombre: 'caja', titulo: 'Todavía no hay partidas',
-              mensaje: 'Busca un material arriba y captura las medidas. Cada partida calcula su propia merma, cajas y accesorios.' })));
+              mensaje: 'Busca un material arriba y captura las medidas, o agrega una partida Hunter Douglas con los precios de e-Pedidos. Cada partida calcula su propia merma, cajas y accesorios.' })));
     refrescarResumen();
     return;
   }
@@ -264,15 +269,21 @@ function tarjetaPartida(linea, idx) {
         el('p', { class: 'small muted mt-3' }, resumenPartida(c, producto)),
         el('div', { class: 'row row--tight mt-3' },
           c.margenEfectivo != null
-            ? el('span', { class: `pill pill--sm ${c.margenEfectivo < 0.25 ? 'pill--danger' : c.margenEfectivo < 0.3 ? 'pill--warn' : 'pill--ok'}` },
+            ? el('span', { class: `pill pill--sm ${c.margenEfectivo < 0.25 ? 'pill--danger' : c.margenEfectivo < 0.3 ? 'pill--warn' : 'pill--ok'}`,
+                           title: c.tipo === 'proveedor' ? 'Margen deducido del precio de lista contra la factura' : 'Margen real después del descuento' },
                 `Margen ${fmtNum(c.margenEfectivo * 100, 1)}%`)
             : null,
           c.descuentoPct > 0 ? el('span', { class: 'pill pill--sm pill--accent' }, `Desc. ${fmtNum(c.descuentoPct * 100, 0)}%`) : null,
+          c.tipo === 'proveedor'
+            ? el('span', { class: 'pill pill--sm pill--accent', title: 'Producto fabricado a la medida por el proveedor, con precio de lista de e-Pedidos' },
+                icono('cortina', 11, 2), `${c.proveedor} · ${leadTimeProducto(producto, S.obtener().config)} días`)
+            : null,
           producto.importado ? el('span', { class: 'pill pill--sm pill--warn' }, `${leadTimeProducto(producto, S.obtener().config)} días`) : null)),
       el('div', { class: 'linea__total' },
         el('div', { style: 'font-size:17px;font-weight:600;font-variant-numeric:tabular-nums' }, fmtMXN(c.importe)),
         el('div', { class: 'row row--tight mt-3', style: 'justify-content:flex-end' },
-          el('button', { class: 'btn btn--ghost btn--sm', onclick: () => abrirEditorPartida(producto, partida) },
+          el('button', { class: 'btn btn--ghost btn--sm', title: 'Cambiar medidas, precios o descuento de esta partida',
+                         onclick: () => (partida.tipo === 'proveedor' ? abrirEditorProveedor(partida) : abrirEditorPartida(producto, partida)) },
             icono('editar', 14), 'Editar'),
           el('button', {
             class: 'btn btn--ghost btn--sm', title: 'Duplicar partida', 'aria-label': 'Duplicar partida',
@@ -309,6 +320,10 @@ function resumenPartida(c, p) {
   }
   if (c.tipo === 'exterior') {
     return `${fmtNum(c.ancho)} m de ancho × ${fmtNum(c.salida)} m de salida  ·  ${c.cantidad} equipo(s)  ·  ${fmtNum(c.areaFacturable)} m² de sombra`;
+  }
+  if (c.tipo === 'proveedor') {
+    const medida = c.anchoMm > 0 && c.altoMm > 0 ? `${fmtNum(c.anchoMm, 0)} × ${fmtNum(c.altoMm, 0)} mm  ·  ` : '';
+    return `${medida}${fmtNum(c.cantidad, 0)} pza  ·  lista ${fmtMXN(c.lista)} c/u${p.sku ? `  ·  ${p.sku}` : ''}`;
   }
   return `${fmtNum(c.cantidad, 0)} ${p.unidad === 'ml' ? 'ml' : 'pza'}`;
 }
@@ -356,6 +371,14 @@ function desglose(c, p) {
     }
     filas.push(fila('Área facturada', `${fmtNum(c.areaFacturable)} m²`, `${c.cantidad} equipo(s)`));
     filas.push(fila(`Material a ${fmtMXN(c.precioM2)}/m²`, fmtMXN(c.material)));
+  } else if (c.tipo === 'proveedor') {
+    filas.push(fila('Precio de lista', `${fmtNum(c.cantidad, 0)} pza × ${fmtMXN(c.lista)}`,
+      'Renglón "Lista" de e-Pedidos, sin IVA'));
+    filas.push(fila('Lista de la partida', fmtMXN(c.precioLista)));
+    if (c.factura > 0) {
+      filas.push(fila(`Costo ${c.proveedor} (Factura)`, fmtMXN(c.material),
+        `${fmtNum(c.cantidad, 0)} × ${fmtMXN(c.factura)}  ·  ${fmtNum(c.descuentoDistribuidor * 100, 0)}% bajo lista. Solo tú lo ves`));
+    }
   } else {
     filas.push(fila('Cantidad', `${fmtNum(c.cantidad, 0)} ${p.unidad}`));
     filas.push(fila(`Precio unitario`, fmtMXN(c.precioUnitario)));
@@ -366,12 +389,16 @@ function desglose(c, p) {
   }
   if (c.manoObra > 0) {
     filas.push(fila('Instalación', fmtMXN(c.manoObra),
-      c.tarifaInstalacion ? `${fmtMXN(c.tarifaInstalacion)}/m² incluye el factor del patrón` : null));
+      c.tipo === 'proveedor'
+        ? `Costo de cuadrilla. Se vende en ${fmtMXN(c.ventaInstalacion)} con el margen de la empresa`
+        : c.tarifaInstalacion ? `${fmtMXN(c.tarifaInstalacion)}/m² incluye el factor del patrón` : null));
   }
 
   filas.push(fila('Costo directo', fmtMXN(c.costoDirecto)));
   filas.push(fila(`Margen ${fmtNum(c.margen * 100, 0)}%`, `+ ${fmtMXN(c.utilidadBruta)}`,
-    `Equivale a multiplicar el costo por ${fmtNum(1 + c.markupEquivalente, 3)}`));
+    c.precioFijado != null
+      ? 'Deducido del precio de lista del proveedor. No se aplica el margen de Ajustes'
+      : `Equivale a multiplicar el costo por ${fmtNum(1 + c.markupEquivalente, 3)}`));
   if (c.descuento > 0) filas.push(fila(`Descuento ${fmtNum(c.descuentoPct * 100, 0)}%`, `- ${fmtMXN(c.descuento)}`));
 
   const cont = el('div', { class: 'desglose' }, ...filas,
@@ -504,12 +531,130 @@ function tarjetasPreview(c, p) {
     t.push(kpi('Área de sombra', `${fmtNum(c.areaFacturable)} m²`,
       c.aplicaMinimo ? 'Aplica área mínima por equipo' : `${c.cantidad} equipo(s)`));
     t.push(kpi('Por equipo', `${fmtNum(c.areaFacturableUnitaria)} m²`, `Real ${fmtNum(c.areaReal)} m²`));
+  } else if (c.tipo === 'proveedor') {
+    t.push(kpi('Precio de lista', fmtMXN(c.precioLista), `${fmtNum(c.cantidad, 0)} pza, sin IVA`));
+    t.push(kpi(`Costo ${c.proveedor}`, fmtMXN(c.material),
+      c.factura > 0 ? `${fmtNum(c.descuentoDistribuidor * 100, 0)}% bajo lista. Solo tú lo ves` : 'Sin factura capturada'));
   } else {
     t.push(kpi('Cantidad', `${fmtNum(c.cantidad, 0)}`, p.unidad));
     t.push(kpi('Unitario', fmtMXN(c.precioUnitario), ''));
   }
-  t.push(kpi('Precio al cliente', fmtMXN(c.importe), `Margen ${fmtNum(c.margenEfectivo * 100, 1)}%`));
+  const ivaPct = S.obtener().config.fiscal.iva;
+  t.push(kpi('Precio al cliente', fmtMXN(c.importe),
+    c.tipo === 'proveedor'
+      ? `Margen ${fmtNum(c.margenEfectivo * 100, 1)}%  ·  ${fmtMXN(c.importe * (1 + ivaPct))} con IVA`
+      : `Margen ${fmtNum(c.margenEfectivo * 100, 1)}%`));
   return t;
+}
+
+// --------------------------------------------------------------------------- partida de proveedor
+
+/**
+ * Producto que ya se configuró en e-Pedidos. El vendedor copia lo que dice el
+ * resumen: descripción, códigos, medidas, lista y factura. La lista es el
+ * precio al cliente; la factura es el costo y nunca se imprime.
+ */
+function abrirEditorProveedor(existente = null) {
+  const s = S.obtener();
+  const tarifa = s.config.tarifas.instalacionPersianaPza;
+  const borrador = existente ? { ...existente } : {
+    id: uid('pt'), tipo: 'proveedor', proveedor: 'Hunter Douglas',
+    descripcion: '', codigo: '', detalle: '',
+    anchoMm: '', altoMm: '', cantidad: 1,
+    lista: '', factura: '', diasEntrega: s.config.logistica.diasProveedor ?? 21,
+    incluirInstalacion: false, descuentoPct: 0, margenOverride: null,
+  };
+
+  const preview = el('div', {});
+  let btnGuardar;
+
+  const repintar = () => {
+    const producto = productoDePartida(borrador, s.config);
+    const calc = calcularPartida(borrador, producto, s.config);
+    const listo = Boolean(calc) && Number(borrador.lista) > 0 && Number(borrador.cantidad) > 0;
+    preview.replaceChildren(listo
+      ? el('div', {},
+          el('div', { class: 'grid-3 mb-4' }, ...tarjetasPreview(calc, producto)),
+          desglose(calc, producto))
+      : nota('Captura el precio de lista para ver el cálculo. La factura es opcional, pero sin ella no hay margen que vigilar.', '', 'info'));
+    if (btnGuardar) btnGuardar.disabled = !listo;
+  };
+
+  const set = (k, v) => { borrador[k] = v; repintar(); };
+  const texto = (k, extra = {}) => entrada({ valor: borrador[k] ?? '', onInput: (e) => set(k, e.target.value), ...extra });
+  const numero = (k, extra = {}) => entrada({
+    valor: borrador[k] ?? '', tipo: 'number', numero: true, min: '0', onInput: (e) => set(k, e.target.value), ...extra,
+  });
+
+  const formulario = el('div', { class: 'stack stack-4' },
+    nota('Configura el producto en e-Pedidos como siempre y copia aquí lo que dice su resumen. La partida entra al PDF ' +
+         'con el precio de lista más IVA. La factura y el margen nunca se imprimen.', 'accent', 'info'),
+    el('div', { class: 'grid-2' },
+      campo({ etiqueta: 'Descripción para el PDF', pista: 'Familia, línea, colección y color, como debe leerlo el cliente' },
+        texto('descripcion', { placeholder: 'Duette 20 mm Classic Room Darkening, Desert Sands',
+                               title: 'Es el nombre de la partida en la cotización y en el PDF' })),
+      campo({ etiqueta: 'Códigos de e-Pedidos', pista: 'Los que muestra el resumen: línea, colección y color' },
+        texto('codigo', { placeholder: 'C20 · D7 · D7955', title: 'Salen en el anexo técnico del PDF, para que el pedido cuadre' })),
+      campo({ etiqueta: 'Detalle', pista: 'Accionamiento, lado del control, instalación y opcionales, separados por coma' },
+        texto('detalle', { placeholder: 'Motorizada PowerView Gen3, control derecho, dentro de marco',
+                           title: 'Cada elemento separado por coma sale como etiqueta en el anexo técnico' }))),
+    el('div', { class: 'grid-3' },
+      campo({ etiqueta: 'Ancho', sufijo: 'mm' }, numero('anchoMm', { paso: '1', placeholder: '2000', title: 'Ancho como lo capturaste en e-Pedidos' })),
+      campo({ etiqueta: 'Alto', sufijo: 'mm' }, numero('altoMm', { paso: '1', placeholder: '2000', title: 'Alto como lo capturaste en e-Pedidos' })),
+      campo({ etiqueta: 'Piezas iguales', sufijo: 'pza' }, numero('cantidad', { paso: '1', min: '1', title: 'Cuántas piezas idénticas lleva la partida' }))),
+    el('div', { class: 'grid-3' },
+      campo({ etiqueta: 'Precio de lista por pieza', sufijo: 'MXN', pista: 'Renglón "Lista" de e-Pedidos, sin IVA' },
+        numero('lista', { paso: '0.01', placeholder: '0.00', title: 'Lo que se le cobra al cliente por pieza, antes de IVA' })),
+      campo({ etiqueta: 'Factura por pieza', sufijo: 'MXN', pista: 'Renglón "Factura": lo que paga la empresa. Solo tú lo ves' },
+        numero('factura', { paso: '0.01', placeholder: '0.00', title: 'Costo por pieza. Sirve para vigilar el margen y nunca se imprime' })),
+      campo({ etiqueta: 'Entrega', sufijo: 'días', pista: 'Lo que confirme Hunter Douglas al levantar el pedido' },
+        numero('diasEntrega', { paso: '1', min: '1', title: 'Días naturales de fabricación y entrega. Manda la partida más lenta' }))),
+
+    accion({ iconoNombre: 'capas', titulo: 'Instalación y descuento', abierto: true,
+             pista: 'La instalación va aparte del precio de lista' },
+      el('hr', { class: 'rule mt-0' }),
+      el('div', { class: 'grid-2' },
+        casilla({ marcado: borrador.incluirInstalacion, texto: `Instalación por ${s.config.empresa.nombre}`,
+                  pista: `${fmtMXN(tarifa)} por pieza con cargo mínimo por visita, vendida con el margen de la empresa`,
+                  onChange: (v) => set('incluirInstalacion', v) }),
+        campo({ etiqueta: 'Descuento al cliente', sufijo: '%', pista: 'Sobre el precio de lista. Baja el margen; el costo se queda igual' },
+          entrada({ valor: borrador.descuentoPct * 100 || '', tipo: 'number', paso: '1', min: '0', max: '50', numero: true,
+                    placeholder: '0', title: 'Porcentaje que se le rebaja al cliente sobre la lista',
+                    onInput: (e) => set('descuentoPct', Number(e.target.value || 0) / 100) })))));
+
+  btnGuardar = el('button', { class: 'btn btn--primary', title: 'Guarda la partida y la suma a la cotización' },
+    existente ? 'Guardar cambios' : 'Agregar a la cotización');
+  btnGuardar.onclick = () => {
+    const limpio = {
+      ...borrador,
+      productoId: undefined,
+      descripcion: String(borrador.descripcion ?? '').trim(),
+      codigo: String(borrador.codigo ?? '').trim(),
+      detalle: String(borrador.detalle ?? '').trim(),
+      anchoMm: Number(borrador.anchoMm) || 0, altoMm: Number(borrador.altoMm) || 0,
+      cantidad: Math.max(1, Number(borrador.cantidad) || 1),
+      lista: Number(borrador.lista) || 0, factura: Number(borrador.factura) || 0,
+      diasEntrega: Number(borrador.diasEntrega) || 0,
+    };
+    if (existente) S.actualizarPartida(existente.id, limpio);
+    else S.agregarPartida(limpio);
+    cerrarModal();
+    refrescarPartidas();
+    avisar(existente ? 'Partida actualizada' : 'Partida Hunter Douglas agregada');
+  };
+
+  abrirModal(
+    { titulo: existente ? 'Partida Hunter Douglas' : 'Nueva partida Hunter Douglas', ancho: true,
+      subtitulo: 'Producto configurado en e-Pedidos. Precio de lista al cliente, factura como costo.' },
+    el('div', { class: 'stack stack-5' },
+      formulario,
+      el('div', {},
+        el('p', { class: 'eyebrow mb-3' }, 'Cálculo en vivo'),
+        preview)),
+    [el('button', { class: 'btn', onclick: cerrarModal, title: 'Cerrar sin guardar' }, 'Cancelar'), btnGuardar]);
+
+  repintar();
+  setTimeout(() => $('.modal input')?.focus(), 80);
 }
 
 function kpi(etiqueta, valor, nota_) {

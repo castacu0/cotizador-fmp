@@ -33,7 +33,7 @@ export const CONOCIMIENTO = [
     tema: 'Uso',
     claves: 'ejemplo demo prueba ver como se ve muestra',
     p: '¿Puedo ver un ejemplo antes de capturar algo?',
-    r: 'Sí. En la pestaña Cotizar, el botón "Cargar ejemplo" arma una cotización completa de hotel con cuatro partidas en un clic. Sirve para conocer la herramienta sin capturar nada. Para borrarla, presiona "Nueva".',
+    r: 'Sí. En la pestaña Cotizar, el botón "Cargar ejemplo" arma una cotización completa de hotel con cinco partidas en un clic, incluida una de Hunter Douglas. Sirve para conocer la herramienta sin capturar nada. Para borrarla, presiona "Nueva".',
   },
   {
     tema: 'Uso',
@@ -321,7 +321,19 @@ export const CONOCIMIENTO = [
     tema: 'Hunter Douglas',
     claves: 'epedidos e-pedidos pedidos portal my hunterdouglas lms entro cotizar lista factura precio con iva distribuidor boton',
     p: '¿Dónde cotizo un producto Hunter Douglas y qué precio le doy al cliente?',
-    r: 'Se cotiza en e-Pedidos MX, el portal de pedidos del distribuidor. My HunterDouglas tiene las listas de precios y las fichas, y el LMS la capacitación. Los tres se abren desde el botón Hunter Douglas de Cotizar, y las direcciones se editan en Ajustes. Ojo con el resumen de e-Pedidos: "Lista" es el precio al público sin IVA, "Factura" es lo que paga la empresa, y su "Precio con IVA" es esa factura con impuesto. Al cliente se le cobra la lista más IVA. Si cobras la lista como si ya trajera IVA, ese 16% sale de la utilidad. El mismo botón trae la calculadora: capturas lista y factura y te da el precio con IVA y el margen.',
+    r: 'Se cotiza en e-Pedidos MX, el portal de pedidos del distribuidor. My HunterDouglas tiene las listas de precios y las fichas, y el LMS la capacitación. Los tres se abren desde el botón Hunter Douglas de Cotizar, y las direcciones se editan en Ajustes. Ojo con el resumen de e-Pedidos: "Lista" es el precio al público sin IVA, "Factura" es lo que paga la empresa, y su "Precio con IVA" es esa factura con impuesto. Al cliente se le cobra la lista más IVA. Si cobras la lista como si ya trajera IVA, ese 16% sale de la utilidad. El mismo botón trae la calculadora y el acceso a la partida Hunter Douglas, que mete el producto al PDF con el precio correcto.',
+  },
+  {
+    tema: 'Hunter Douglas',
+    claves: 'partida hunter douglas cotizacion pdf agregar meter producto epedidos lista factura configurado copiar resumen',
+    p: '¿Cómo meto un producto Hunter Douglas a la cotización y al PDF?',
+    r: 'En Cotizar, botón "Partida Hunter Douglas" (también está dentro del botón Hunter Douglas). Configura el producto en e-Pedidos como siempre y copia lo que dice su resumen: descripción, códigos, medidas en milímetros, piezas, precio de lista y factura por pieza. La partida entra al PDF con la descripción, la medida, la cantidad y el precio de lista más IVA; la factura y el margen se quedan en la aplicación. Si la instalación la hace la empresa, marca la casilla y se suma con la tarifa por pieza y el margen de Ajustes. El descuento al cliente baja el margen, nunca el costo.',
+  },
+  {
+    tema: 'Hunter Douglas',
+    claves: 'pdf documentos lista de precios ficha tecnica catalogo guardar ver visor abrir subir archivo',
+    p: '¿Dónde guardo y veo los PDF de listas de precios y fichas?',
+    r: 'En la pestaña Documentos. Descarga el PDF de My HunterDouglas una sola vez, súbelo ahí con su tipo (lista de precios, ficha técnica, catálogo o manual) y queda a la mano para verlo sin salir de la aplicación, con buscador por nombre y nota. Los PDF viven en el navegador de esa computadora, igual que las fotos de obra: no entran al respaldo JSON y no se comparten solos entre equipos. El original sigue en el portal de Hunter Douglas.',
   },
   {
     tema: 'Hunter Douglas',

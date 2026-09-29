@@ -70,6 +70,20 @@ export function cargarEjemplo() {
     partidas.push({ ...BASE_PARTIDA, ...p.datos, id: uid('pt'), productoId: producto.id });
   }
 
+  // Una partida de Hunter Douglas, tal como se copia del resumen de e-Pedidos.
+  // Los precios son inventados; los reales no van en el código.
+  if (partidas.length) {
+    partidas.push({
+      id: uid('pt'), tipo: 'proveedor', proveedor: 'Hunter Douglas',
+      descripcion: 'Duette 20 mm Classic Room Darkening, Desert Sands',
+      codigo: 'C20 · D7 · D7955',
+      detalle: 'Motorizada PowerView Gen3, control derecho, dentro de marco',
+      anchoMm: 2000, altoMm: 2000, cantidad: 12,
+      lista: 9800, factura: 5880, diasEntrega: 21,
+      incluirInstalacion: true, descuentoPct: 0, margenOverride: null,
+    });
+  }
+
   S.actualizar((st) => {
     st.cotizacion = {
       id: uid('cot'),

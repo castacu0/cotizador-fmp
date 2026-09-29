@@ -342,6 +342,11 @@ function descripcionPartida(linea) {
     partes.push(`${fmtNum(c.ancho)} × ${fmtNum(c.alto)} m · ${c.cantidad} pza`);
     if (c.aplicaMinimo) partes.push(`Área mínima facturable ${fmtNum(c.areaMinima)} m²`);
     if (p.acabado) partes.push(p.acabado);
+  } else if (c.tipo === 'proveedor') {
+    const medida = c.anchoMm > 0 && c.altoMm > 0 ? `${fmtNum(c.anchoMm, 0)} × ${fmtNum(c.altoMm, 0)} mm · ` : '';
+    partes.push(`${medida}${fmtNum(c.cantidad, 0)} pza · fabricado a la medida por ${c.proveedor}`);
+    if (p.caracteristicas?.length) partes.push(p.caracteristicas.join(', '));
+    if (p.sku) partes.push(`Código ${p.sku}`);
   }
 
   if (c.accesorios?.length) {
@@ -650,6 +655,13 @@ function listaSpecs(linea) {
   if (c.tipo === 'piso') specs.push(['Superficie facturada', `${fmtNum(c.areaFacturable)} m²`]);
   if (c.tipo === 'cortina') specs.push(['Tela requerida', `${fmtNum(c.metrosLineales, 1)} ml`]);
   if (c.tipo === 'persiana' || c.tipo === 'exterior') specs.push(['Área facturada', `${fmtNum(c.areaFacturable)} m²`]);
+  if (c.tipo === 'proveedor') {
+    if (c.anchoMm > 0 && c.altoMm > 0) specs.push(['Medida', `${fmtNum(c.anchoMm, 0)} × ${fmtNum(c.altoMm, 0)} mm`]);
+    specs.push(['Cantidad', `${fmtNum(c.cantidad, 0)} pza`]);
+    specs.push(['Fabricante', c.proveedor]);
+    specs.push(['Fabricación', 'A la medida']);
+    if (c.manoObra > 0) specs.push(['Instalación', 'Incluida']);
+  }
   return specs;
 }
 
@@ -677,7 +689,7 @@ function especificaciones(L, totales) {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(6.6);
     tinta(doc, C.tenue);
-    doc.text(`SKU ${p.sku || p.id}`, A4.w - M, L.y, { align: 'right' });
+    doc.text(p.virtual ? (p.sku ? `Código ${p.sku}` : '') : `SKU ${p.sku || p.id}`, A4.w - M, L.y, { align: 'right' });
     L.y += 4;
 
     const specs = listaSpecs(linea);
@@ -731,7 +743,9 @@ function tiemposEntrega(L, totales) {
   const filas = totales.lineas.map((l) => ({
     nombre: l.producto.nombre,
     dias: leadTimeProducto(l.producto, config),
-    origen: l.producto.importado ? `Importado · ${l.producto.origen}` : 'Existencia nacional',
+    origen: l.producto.aMedida
+      ? `A la medida · ${l.producto.proveedor}`
+      : l.producto.importado ? `Importado · ${l.producto.origen}` : 'Existencia nacional',
   }));
 
   const alto = 12 + filas.length * 3.8 + (totales.hayImportados ? 11 : 0) + 6;
@@ -749,7 +763,8 @@ function tiemposEntrega(L, totales) {
     tinta(doc, C.tinta);
     doc.text(doc.splitTextToSize(f.nombre, 84)[0], M, L.y);
     tinta(doc, C.suave);
-    doc.text(f.origen, M + 88, L.y);
+    // La columna mide 50 mm hasta los días; un origen largo se recorta en vez de encimarse.
+    doc.text(doc.splitTextToSize(f.origen, 40)[0], M + 88, L.y);
     doc.setFont('helvetica', 'bold');
     tinta(doc, f.dias > 30 ? C.oroTexto : C.tinta);
     doc.text(`${f.dias} días`, M + 138, L.y, { align: 'right' });
@@ -810,18 +825,22 @@ function esquemaPago(L, totales) {
   L.y += 6;
 }
 
-function condiciones(L) {
+function condiciones(L, totales) {
   const { doc, config } = L;
+  const hayAMedida = totales.lineas.some((l) => l.producto?.aMedida);
   const textos = [
     `Todos los precios están expresados en pesos mexicanos (MXN). Vigencia de ${config.comercial.vigenciaDias} días naturales. Los precios de producto importado están sujetos al tipo de cambio del día de la orden.`,
     'Las cantidades se calculan sobre las medidas proporcionadas por el cliente. El levantamiento en sitio puede modificarlas y se ajusta antes de la orden.',
+    hayAMedida
+      ? 'El producto fabricado a la medida entra a producción con las medidas confirmadas en el levantamiento y con el anticipo pagado. Una vez en producción no admite cambios, cancelación ni devolución.'
+      : null,
     'El material se surte por caja completa. La merma indicada por partida ya está considerada en el importe.',
     'No incluye: retiro de piso existente, nivelación de sustrato, obra civil, trabajos eléctricos ni cancelería.',
     'El sitio debe entregarse en obra blanca terminada, nivelado con tolerancia de 3 mm en 2 m y con humedad de losa menor a 2.5%.',
     'La madera requiere 72 horas de aclimatación en obra antes de instalarse, en las condiciones finales de temperatura y humedad.',
     `Garantía de ${config.comercial.garantiaAnios} años en producto contra defecto de fabricación e instalación, con uso y mantenimiento conforme a la ficha técnica.`,
     'Variaciones naturales de veta, tono y nudo en madera no se consideran defecto.',
-  ];
+  ].filter(Boolean);
 
   if (!asegurar(L, 26, 'Condiciones')) return;
   rotulo(L, 'Condiciones');
@@ -950,7 +969,7 @@ export function generarPDF(cot, totales, config, { modo = 'descargar', maxPagina
   especificaciones(L, totales);
   tiemposEntrega(L, totales);
   esquemaPago(L, totales);
-  condiciones(L);
+  condiciones(L, totales);
   firmas(L);
 
   pies(doc, config, doc.getNumberOfPages());

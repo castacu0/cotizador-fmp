@@ -1280,3 +1280,36 @@ html.texto-mayor .cajon .nav__item{font-size:18px;padding:16px var(--s4)}
   .material .btn{flex:1}
 }
 html.texto-mayor .cuarto__mxn{font-size:16px}
+
+/* ======================================================== documentos del proveedor */
+
+.zona-carga {
+  display: flex; flex-direction: column; align-items: center; gap: var(--s3);
+  padding: var(--s6) var(--s5); text-align: center; cursor: pointer;
+  transition: border-color .16s var(--ease), background .16s var(--ease);
+}
+.zona-carga:hover, .zona-carga.is-over { border-color: var(--accent); background: var(--accent-soft); }
+.zona-carga .vacio__icon { margin-bottom: 0; }
+
+.doc {
+  display: flex; align-items: flex-start; gap: var(--s4);
+  padding: var(--s4) var(--s5);
+  border: 1px solid var(--line); border-radius: var(--r3); background: var(--surface);
+}
+.doc__icono {
+  width: 40px; height: 40px; flex: none; display: grid; place-items: center;
+  border-radius: var(--r2); background: var(--surface-3); color: var(--ink-3);
+}
+.doc__cuerpo { flex: 1; min-width: 0; }
+.doc__nombre { font-size: 14.5px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.doc__meta { font-size: 12px; color: var(--ink-3); margin-top: 3px; }
+.doc__acciones { display: flex; gap: var(--s2); flex: none; flex-wrap: wrap; justify-content: flex-end; }
+.select--sm { padding-top: 6px; padding-bottom: 6px; font-size: 13px; width: auto; }
+
+.visor { width: 100%; height: 76vh; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); display: block; }
+
+@media (max-width: 620px) {
+  .doc { flex-wrap: wrap; }
+  .doc__acciones { width: 100%; justify-content: flex-start; }
+  .visor { height: 68vh; }
+}

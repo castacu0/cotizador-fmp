@@ -25,6 +25,7 @@ const RUTAS = [
   { hash: '#/medidor',   etiqueta: 'Medir',     grupo: 'cotizar', cargar: () => import('./views/medidor.js') },
   { hash: '#/cotizador', etiqueta: 'Cotizar',   grupo: 'cotizar', cargar: () => import('./views/cotizador.js') },
   { hash: '#/catalogo',  etiqueta: 'Catálogo',  grupo: 'cotizar', cargar: () => import('./views/catalogo.js') },
+  { hash: '#/documentos', etiqueta: 'Documentos', grupo: 'cotizar', cargar: () => import('./views/documentos.js') },
   { hash: '#/ayuda',     etiqueta: 'Ayuda',     grupo: 'cotizar', cargar: () => import('./views/ayuda.js') },
   { hash: '#/servicios', etiqueta: 'Servicios', grupo: 'cotizar', cargar: () => import('./views/servicios.js') },
   { hash: '#/ventas',    etiqueta: 'Reporte',   grupo: 'ventas',  cargar: () => import('./views/ventas.js') },
@@ -401,6 +402,13 @@ async function arrancarTour() {
              '"Agregar producto" se da de alta un material nuevo en menos de un minuto.',
       antes: () => irA('#/catalogo'),
       selector: '.view header .row', posicion: 'abajo', espera: 260,
+    },
+    {
+      titulo: 'Los PDF del proveedor, a la mano',
+      texto: 'Las listas de precios y las fichas de Hunter Douglas se suben aquí una vez y se abren ' +
+             'sin salir de la aplicación ni entrar al portal.',
+      antes: () => irA('#/documentos'),
+      selector: '.view header', posicion: 'abajo', espera: 260,
     },
     {
       titulo: 'El tablero de dirección',

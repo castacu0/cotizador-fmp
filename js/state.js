@@ -33,7 +33,9 @@ export const CONFIG_DEFAULT = {
     anticipoPct: 0.6,
     garantiaAnios: 10,
   },
-  logistica: { diasTransito: 35, diasAduana: 7, diasInstalacionM2: 25 },
+  // diasProveedor: entrega de un producto Hunter Douglas fabricado a la medida,
+  // cuando la partida no trae su propio plazo. Lo confirma e-Pedidos al pedir.
+  logistica: { diasTransito: 35, diasAduana: 7, diasInstalacionM2: 25, diasProveedor: 21 },
   // Portales de Hunter Douglas a los que entra el equipo para cotizar, pedir y
   // capacitarse. Solo direcciones: el usuario y la contraseña se teclean allá,
   // nunca aquí. Se editan en Ajustes > Portales de Hunter Douglas.
@@ -603,6 +605,7 @@ const ETIQUETAS_CONFIG = {
   'comercial.garantiaAnios': 'Años de garantía',
   'logistica.diasTransito': 'Días de tránsito marítimo',
   'logistica.diasAduana': 'Días de despacho aduanal',
+  'logistica.diasProveedor': 'Días de entrega de Hunter Douglas',
 };
 
 // --------------------------------------------------------------------------- respaldo

@@ -4,7 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pruebas del motor de cálculo · Cotizador Mundo de Interiores</title>
-<link rel="stylesheet" href="css/app.css?v=19">
+<link rel="stylesheet" href="css/app.css?v=20">
+<link rel="icon" href="data:,">
 <style>
   .main{max-width:920px}
   .t{width:100%;border-collapse:collapse;font-size:13.5px}
@@ -35,8 +36,9 @@
 <script type="module">
 import { redondearArriba } from './js/format.js';
 import { calcularPartida, calcularTotales, estimarPerimetro, leadTimeProducto,
-         precioBaseMXN, calcularPrecioProveedor, PATRONES } from './js/pricing.js';
+         precioBaseMXN, calcularPrecioProveedor, productoDePartida, PATRONES } from './js/pricing.js';
 import { urlSegura } from './js/portales.js';
+import { filtrarDocumentos, esPDF, ETIQUETAS as ETIQUETAS_DOC } from './js/documentos.js';
 import { CONFIG_DEFAULT, buscarProductos } from './js/state.js';
 import { CATALOGO_DEMO } from './js/catalog-seed.js';
 import { sugerirMapeo, mapearFilas, normalizarCategoria, plantillaCSV } from './js/importer.js';
@@ -361,6 +363,86 @@ P('Proveedor', 'Entradas vacías o negativas dan cero, nunca NaN', () => {
            obtenido: valores.every(Number.isFinite) ? 'todo finito' : 'hay NaN', esperado: 'todo finito' };
 });
 
+// ---------------------------------------------------------------- partida Hunter Douglas
+// Mismos números inventados: lista 10,000 y factura 6,000 por pieza.
+
+const partidaHD = {
+  id: 'hd1', tipo: 'proveedor', proveedor: 'Hunter Douglas',
+  descripcion: 'Duette de prueba', codigo: 'C20 · D7955',
+  detalle: 'Motorizada, control derecho, dentro de marco',
+  anchoMm: 2000, altoMm: 2000, cantidad: 2, lista: 10000, factura: 6000,
+  diasEntrega: 0, incluirInstalacion: false, descuentoPct: 0, margenOverride: null,
+};
+
+P('Partida HD', 'El importe es la lista por las piezas, sin aplicar el margen de Ajustes', () => {
+  const c = calcularPartida(partidaHD, null, cfg);
+  return { ok: c && cerca(c.importe, 20000) && cerca(c.costoDirecto, 12000) && c.tipo === 'proveedor',
+           obtenido: c ? `${c.importe.toFixed(2)} · costo ${c.costoDirecto.toFixed(2)}` : 'null', esperado: '20000.00 · costo 12000.00' };
+});
+P('Partida HD', 'El margen se deduce del precio de lista contra la factura', () => {
+  const c = calcularPartida(partidaHD, null, cfg);
+  return { ok: cerca(c.margen, 0.4, 0.0001) && cerca(c.margenEfectivo, 0.4, 0.0001) && cerca(c.utilidadBruta, 8000),
+           obtenido: `${(c.margenEfectivo * 100).toFixed(1)}%`, esperado: '40.0%' };
+});
+P('Partida HD', 'El override de margen se ignora: el precio lo fija el proveedor', () => {
+  const c = calcularPartida({ ...partidaHD, margenOverride: 0.1 }, null, cfg);
+  return { ok: cerca(c.importe, 20000), obtenido: c.importe.toFixed(2), esperado: '20000.00' };
+});
+P('Partida HD', 'El descuento al cliente baja la venta y el margen; el costo se queda igual', () => {
+  const c = calcularPartida({ ...partidaHD, descuentoPct: 0.10 }, null, cfg);
+  return { ok: cerca(c.importe, 18000) && cerca(c.costoDirecto, 12000) && cerca(c.margenEfectivo, 1 / 3, 0.0001),
+           obtenido: `${c.importe.toFixed(2)} · ${(c.margenEfectivo * 100).toFixed(1)}%`, esperado: '18000.00 · 33.3%' };
+});
+P('Partida HD', 'La instalación se suma al costo y se vende con el margen por defecto', () => {
+  const c = calcularPartida({ ...partidaHD, incluirInstalacion: true }, null, cfg);
+  const mo = Math.max(2 * cfg.tarifas.instalacionPersianaPza, cfg.tarifas.minimoInstalacionCortina);
+  const venta = mo / (1 - cfg.comercial.margenDefault);
+  return { ok: cerca(c.manoObra, mo) && cerca(c.importe, 20000 + venta) && cerca(c.costoDirecto, 12000 + mo),
+           obtenido: `${c.importe.toFixed(2)}`, esperado: (20000 + venta).toFixed(2) };
+});
+P('Partida HD', 'Entra a los totales sin producto en el catálogo y paga IVA sobre la lista', () => {
+  const t = calcularTotales([partidaHD], catalogoPrueba, { ...cfg, _descuentoGlobal: 0 });
+  return { ok: t.lineas.length === 1 && cerca(t.subtotal, 20000) && cerca(t.iva, 3200) && cerca(t.total, 23200),
+           obtenido: `${t.lineas.length} línea(s) · total ${t.total.toFixed(2)}`, esperado: '1 línea(s) · total 23200.00' };
+});
+P('Partida HD', 'El producto virtual toma nombre, código y etiquetas de la partida', () => {
+  const p = productoDePartida(partidaHD, cfg);
+  return { ok: p.nombre === 'Duette de prueba' && p.sku === 'C20 · D7955' && p.caracteristicas.length === 3 && p.aMedida === true,
+           obtenido: `${p.nombre} · ${p.sku} · ${p.caracteristicas.length} etiquetas`, esperado: 'Duette de prueba · C20 · D7955 · 3 etiquetas' };
+});
+P('Partida HD', 'Sin plazo propio usa los días de entrega de Hunter Douglas de Ajustes', () => {
+  const sinPlazo = leadTimeProducto(productoDePartida(partidaHD, cfg), cfg);
+  const conPlazo = leadTimeProducto(productoDePartida({ ...partidaHD, diasEntrega: 30 }, cfg), cfg);
+  return { ok: sinPlazo === cfg.logistica.diasProveedor && conPlazo === 30,
+           obtenido: `${sinPlazo} / ${conPlazo} días`, esperado: `${cfg.logistica.diasProveedor} / 30 días` };
+});
+P('Partida HD', 'Sin descripción no truena: usa un nombre genérico', () => {
+  const c = calcularPartida({ ...partidaHD, descripcion: '', codigo: '', detalle: '' }, null, cfg);
+  const p = productoDePartida({ ...partidaHD, descripcion: '' }, cfg);
+  return { ok: c && cerca(c.importe, 20000) && /Hunter Douglas/.test(p.nombre),
+           obtenido: p.nombre, esperado: 'Producto Hunter Douglas' };
+});
+
+// ---------------------------------------------------------------- documentos
+
+P('Documentos', 'Solo se aceptan PDF, por tipo o por extensión', () => {
+  const ok = esPDF({ type: 'application/pdf', name: 'lista.PDF' }) && esPDF({ type: '', name: 'lista.pdf' })
+    && !esPDF({ type: 'image/png', name: 'foto.png' }) && !esPDF(null);
+  return { ok, obtenido: ok ? 'pdf sí, png no' : 'acepta algo indebido', esperado: 'pdf sí, png no' };
+});
+P('Documentos', 'La búsqueda combina palabras y filtra por tipo', () => {
+  const docs = [
+    { nombre: 'Lista de precios Duette 2026', etiqueta: 'Lista de precios', proveedor: 'Hunter Douglas', nota: '' },
+    { nombre: 'Ficha Duette', etiqueta: 'Ficha técnica', proveedor: 'Hunter Douglas', nota: 'vigente' },
+    { nombre: 'Catálogo PowerView', etiqueta: 'Catálogo', proveedor: 'Hunter Douglas', nota: '' },
+  ];
+  const a = filtrarDocumentos(docs, 'duette 2026');
+  const b = filtrarDocumentos(docs, 'duette', 'Ficha técnica');
+  const c = filtrarDocumentos(docs, 'VIGENTE');
+  return { ok: a.length === 1 && b.length === 1 && b[0].etiqueta === 'Ficha técnica' && c.length === 1 && ETIQUETAS_DOC.length >= 4,
+           obtenido: `${a.length} / ${b.length} / ${c.length}`, esperado: '1 / 1 / 1' };
+});
+
 // ---------------------------------------------------------------- buscador
 
 P('Buscador', 'Varias palabras acotan y el mejor resultado queda primero', () => {
@@ -604,6 +686,12 @@ P('Asistente', 'Sabe dónde se cotiza Hunter Douglas y advierte del IVA de e-Ped
   const r = responder('donde cotizo un producto hunter douglas epedidos');
   return { ok: r.length > 0 && /e-Pedidos/.test(r[0].r) && /IVA/.test(r[0].r),
            obtenido: r[0]?.p ?? 'sin respuesta', esperado: 'manda a e-Pedidos y explica el IVA' };
+});
+P('Asistente', 'Explica cómo entra un producto Hunter Douglas al PDF y dónde van los PDF', () => {
+  const a = responder('como meto un producto hunter douglas a la cotizacion');
+  const b = responder('donde guardo los pdf de listas de precios');
+  return { ok: a.length > 0 && /Partida Hunter Douglas/.test(a[0].r) && b.length > 0 && /Documentos/.test(b[0].r),
+           obtenido: `${a[0]?.p ?? 'sin respuesta'} | ${b[0]?.p ?? 'sin respuesta'}`, esperado: 'partida al PDF | pestaña Documentos' };
 });
 P('Portales', 'Los portales por defecto tienen nombre y, si traen dirección, es https', () => {
   const portales = CONFIG_DEFAULT.portales ?? [];

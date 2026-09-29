@@ -416,31 +416,113 @@ export function calcularAccesorio({ partida, producto, config }) {
 }
 
 // ---------------------------------------------------------------------------
+// Motor: PARTIDA DE PROVEEDOR (Hunter Douglas)
+// ---------------------------------------------------------------------------
+
+/**
+ * El producto ya se configuró en e-Pedidos y llega con dos precios unitarios
+ * sin IVA: "Lista", que es el precio de venta, y "Factura", que es el costo.
+ * Aquí el proveedor fija el precio, así que el margen se deduce en vez de
+ * aplicarse. Si se incluye instalación, esa parte sí se cotiza con la tarifa
+ * por pieza y el margen por defecto de la empresa.
+ */
+export function calcularProveedor({ partida, config }) {
+  const cantidad = Math.max(0, num(partida.cantidad, 1));
+  const lista = Math.max(0, num(partida.lista));
+  const factura = Math.max(0, num(partida.factura));
+
+  const material = factura * cantidad;
+  const precioLista = lista * cantidad;
+
+  const manoObra = partida.incluirInstalacion
+    ? Math.max(cantidad * num(config.tarifas.instalacionPersianaPza),
+               num(config.tarifas.minimoInstalacionCortina))
+    : 0;
+  const margenInst = Math.min(Math.max(num(config.comercial.margenDefault, 0.35), 0), 0.9);
+  const ventaInstalacion = manoObra > 0 ? manoObra / (1 - margenInst) : 0;
+
+  return {
+    tipo: 'proveedor',
+    proveedor: partida.proveedor || 'Hunter Douglas',
+    cantidad, lista, factura,
+    anchoMm: num(partida.anchoMm), altoMm: num(partida.altoMm),
+    precioLista,
+    precioUnitario: lista,
+    descuentoDistribuidor: lista > 0 ? 1 - factura / lista : 0,
+    material,
+    accesorios: [],
+    totalAccesorios: 0,
+    manoObra,
+    ventaInstalacion,
+    costoDirecto: material + manoObra,
+    // Precio de venta fijado por el proveedor, más la instalación con margen.
+    precioFijado: precioLista + ventaInstalacion,
+  };
+}
+
+/**
+ * Producto virtual para una partida de proveedor. No vive en el catálogo: se
+ * arma desde la partida para que el PDF, las tarjetas y los tiempos de entrega
+ * la traten como a cualquier otra.
+ */
+export function productoDePartida(partida, config) {
+  const detalle = String(partida.detalle ?? '').split(/[,;·]/).map((s) => s.trim()).filter(Boolean);
+  const dias = num(partida.diasEntrega);
+  return {
+    id: partida.id,
+    sku: partida.codigo || '',
+    nombre: String(partida.descripcion ?? '').trim() || `Producto ${partida.proveedor || 'Hunter Douglas'}`,
+    categoria: 'persiana',
+    unidad: 'pza',
+    moneda: 'MXN',
+    precio: num(partida.factura),
+    importado: false,
+    leadTimeDias: dias > 0 ? dias : num(config?.logistica?.diasProveedor, 21),
+    proveedor: partida.proveedor || 'Hunter Douglas',
+    aMedida: true,
+    caracteristicas: detalle.slice(0, 6),
+    virtual: true,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Despachador
 // ---------------------------------------------------------------------------
 
 export function calcularPartida(partida, producto, config) {
+  if (partida?.tipo === 'proveedor' && !producto) producto = productoDePartida(partida, config);
   if (!producto) return null;
   const familia = CATEGORIAS[producto.categoria]?.familia ?? 'piso';
   const args = { partida, producto, config };
 
   let base;
-  if (familia === 'cortina') base = calcularCortina(args);
+  if (partida.tipo === 'proveedor') base = calcularProveedor(args);
+  else if (familia === 'cortina') base = calcularCortina(args);
   else if (familia === 'persiana') base = calcularPersiana(args);
   else if (familia === 'exterior') base = calcularExterior(args);
   else if (familia === 'accesorio') base = calcularAccesorio(args);
   else base = calcularPiso(args);
 
-  // --- Margen ---
-  // Margen bruto real: precio = costo / (1 - margen). No es lo mismo que markup.
-  // Un "35% de margen" aplicado como markup (costo x 1.35) deja 25.9% real.
-  const margen = partida.margenOverride != null
-    ? num(partida.margenOverride)
-    : num(config.comercial.margenDefault, 0.35);
-  const margenSeguro = Math.min(Math.max(margen, 0), 0.9);
-
   const costoDirecto = base.costoDirecto;
-  const precioAntesDescuento = margenSeguro > 0 ? costoDirecto / (1 - margenSeguro) : costoDirecto;
+  let margenSeguro;
+  let precioAntesDescuento;
+
+  if (base.precioFijado != null) {
+    // El proveedor fija el precio de venta (lista de Hunter Douglas). El margen
+    // se deduce del precio; el margen por defecto y el override no aplican.
+    precioAntesDescuento = Math.max(0, num(base.precioFijado));
+    margenSeguro = precioAntesDescuento > 0 ? (precioAntesDescuento - costoDirecto) / precioAntesDescuento : 0;
+  } else {
+    // --- Margen ---
+    // Margen bruto real: precio = costo / (1 - margen). No es lo mismo que markup.
+    // Un "35% de margen" aplicado como markup (costo x 1.35) deja 25.9% real.
+    const margen = partida.margenOverride != null
+      ? num(partida.margenOverride)
+      : num(config.comercial.margenDefault, 0.35);
+    margenSeguro = Math.min(Math.max(margen, 0), 0.9);
+    precioAntesDescuento = margenSeguro > 0 ? costoDirecto / (1 - margenSeguro) : costoDirecto;
+  }
+
   const utilidadBruta = precioAntesDescuento - costoDirecto;
   const markupEquivalente = costoDirecto > 0 ? precioAntesDescuento / costoDirecto - 1 : 0;
 
@@ -514,7 +596,9 @@ export function calcularPrecioProveedor({ lista, factura, descuentoPct = 0, ivaP
 
 export function calcularTotales(partidas, catalogo, config) {
   const lineas = partidas.map((p) => {
-    const producto = catalogo.find((x) => x.id === p.productoId);
+    // La partida de proveedor no apunta al catálogo: trae su propio producto.
+    const producto = catalogo.find((x) => x.id === p.productoId)
+      ?? (p.tipo === 'proveedor' ? productoDePartida(p, config) : undefined);
     return { partida: p, producto, calculo: calcularPartida(p, producto, config) };
   }).filter((l) => l.calculo);
 

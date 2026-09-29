@@ -114,11 +114,23 @@ function calculadora() {
 
 // --------------------------------------------------------------------------- modal
 
-export function abrirPortales() {
+export function abrirPortales({ alAgregarPartida = null } = {}) {
   abrirModal(
     { titulo: 'Hunter Douglas',
-      subtitulo: 'Portales del distribuidor y precio al cliente a partir de e-Pedidos.' },
+      subtitulo: 'Portales del distribuidor, partida nueva y precio al cliente a partir de e-Pedidos.' },
     el('div', {},
+      el('div', { class: 'row' },
+        alAgregarPartida
+          ? el('button', {
+              class: 'btn btn--primary',
+              title: 'Captura descripción, medidas, lista y factura de e-Pedidos, y la partida entra al PDF',
+              onclick: () => { cerrarModal(); alAgregarPartida(); },
+            }, icono('cortina', 15), 'Agregar partida Hunter Douglas')
+          : null,
+        el('a', { class: 'btn', href: '#/documentos', onclick: () => cerrarModal(),
+                  title: 'Listas de precios y fichas en PDF guardadas en esta computadora' },
+          icono('pdf', 15), 'Documentos en PDF')),
+      el('hr', { class: 'rule' }),
       el('p', { class: 'eyebrow' }, 'A dónde entrar'),
       el('div', { class: 'mt-3' }, listaPortales()),
       el('hr', { class: 'rule' }),

@@ -160,21 +160,23 @@ a la portada.
    al cliente (ver abajo).
 3. **Catálogo**: alta, edición y búsqueda de materiales. Cambio de precios por familia.
    Cada material trae su nombre en inglés, visible y buscable. Exporta a CSV.
-4. **Ayuda**: fórmulas explicadas y material de capacitación para el equipo de ventas.
-5. **Servicios**: qué incluye la herramienta hoy y qué entra en la Fase 2.
+4. **Documentos**: listas de precios, fichas técnicas y catálogos del proveedor en PDF,
+   con visor integrado, buscador y tipo por documento.
+5. **Ayuda**: fórmulas explicadas y material de capacitación para el equipo de ventas.
+6. **Servicios**: qué incluye la herramienta hoy y qué entra en la Fase 2.
 
 **Ventas**
 
-6. **Reporte**: el mes por asesor, por familia y por línea y color. Exporta a CSV.
-7. **Registrar**: alta de la venta con sus partidas, su anticipo y su carpeta de Drive.
-8. **Tablero**: qué ha ahorrado la empresa, margen promedio, valor cotizado por mes,
+7. **Reporte**: el mes por asesor, por familia y por línea y color. Exporta a CSV.
+8. **Registrar**: alta de la venta con sus partidas, su anticipo y su carpeta de Drive.
+9. **Tablero**: qué ha ahorrado la empresa, margen promedio, valor cotizado por mes,
    registro de actividad (quién entró y quién cotizó) y bitácora de cambios de precio.
 
 **Siempre**
 
-9. **Ajustes**: quién usa la computadora, equipo y permisos, supuestos del medidor,
-   portales de Hunter Douglas, datos de la empresa, margen, IVA, tipo de cambio, tarifas
-   e importación del catálogo.
+10. **Ajustes**: quién usa la computadora, equipo y permisos, supuestos del medidor,
+    portales de Hunter Douglas, datos de la empresa, margen, IVA, tipo de cambio, tarifas,
+    días de entrega del proveedor e importación del catálogo.
 
 En el teléfono la barra se reduce al logotipo y un botón de menú: ahí dentro están las
 pantallas del camino en curso, el cambio al otro camino, el control **A− / A+**, **Dudas**
@@ -215,7 +217,24 @@ cliente se le cobra la lista más IVA, y ese número el portal no lo enseña. El
 trae una calculadora: se capturan Lista y Factura tal como aparecen y sale el precio al
 cliente con IVA, la utilidad y el margen real, con el mismo semáforo del cotizador.
 
-Es el primer paso de la fase 3. Lo que sigue está en *Lo que sigue*.
+**Partida Hunter Douglas.** En `Cotizar`, el botón **Partida Hunter Douglas** mete a la
+cotización un producto ya configurado en e-Pedidos. Se copia lo que dice su resumen:
+descripción, códigos, medidas en milímetros, piezas, precio de lista y factura por pieza.
+El precio de venta lo fija la lista, así que el margen se deduce en vez de aplicarse, y
+el margen por defecto de Ajustes no interviene. Un descuento al cliente baja el margen y
+deja el costo igual. Si la instalación la hace la empresa, se suma con la tarifa por
+pieza y sí lleva el margen por defecto. En el PDF salen la descripción, la medida, la
+cantidad, el precio de lista, el código en el anexo técnico y la condición de fabricación
+a la medida; la factura y el margen nunca se imprimen. El ejemplo de `Cargar ejemplo`
+trae una partida así, con precios inventados.
+
+**Documentos.** Hunter Douglas entrega las listas de precios solo en PDF. La pestaña
+`Documentos` los guarda una vez y los abre dentro de la aplicación, con buscador, tipo
+(lista de precios, ficha técnica, catálogo, manual) y una nota por documento. Viven en el
+navegador de esa computadora, como las fotos de obra: no entran al respaldo JSON. El
+original sigue en My HunterDouglas.
+
+Lo que sigue de la fase 3 está en *Lo que sigue*.
 
 ---
 
@@ -234,7 +253,7 @@ el navegador. Conviene hacerlo cada vez que cambien precios y el primer día de 
 
 Cesar Castanon A · WhatsApp +1 341 758 3854 · cesar@castacu0.com
 
-Dentro de la aplicación, el botón **Dudas** abre un asistente con 51 respuestas cargadas,
+Dentro de la aplicación, el botón **Dudas** abre un asistente con 53 respuestas cargadas,
 incluidas las de las líneas Hunter Douglas. No es un modelo de lenguaje: responde de una
 base de conocimiento curada y, cuando no tiene la respuesta, ofrece el contacto directo
 en vez de inventar.
@@ -264,6 +283,8 @@ Hay que decirlos claro antes de operar con clientes reales:
   pero la tarifa todavía no es la real de cuadrilla.
 - **Las fotos no entran al respaldo JSON.** Pesan demasiado. Viven solo en el navegador
   donde se tomaron.
+- **Los PDF de Documentos tampoco.** Misma razón. Cada computadora sube los suyos, y el
+  original sigue en el portal del proveedor.
 
 Para trabajo real con diez personas hace falta base de datos, cuentas y sincronización.
 Eso es la fase 2.
@@ -280,15 +301,16 @@ Pendiente de la migración que se acordó con la dirección:
   reporte de ventas dejen de usar promedios.
 - Cuentas reales por persona, que reemplacen la separación por confianza de hoy.
 
-Fase 3, Hunter Douglas dentro del cotizador, por orden:
+Fase 3, Hunter Douglas dentro del cotizador. Ya están la partida Hunter Douglas, el
+precio fijado por el proveedor en el motor, los portales, la calculadora y los documentos
+en PDF. Lo que falta, por orden:
 
-- Partida Hunter Douglas en la cotización: el vendedor pega descripción, código y los dos
-  precios de e-Pedidos, y la partida entra al PDF con IVA, margen en vivo y semáforo.
-- Dos precios por producto en el motor: precio de venta fijado por el proveedor y costo de
-  factura. Hoy el margen se calcula como `costo / (1 − margen)`, y con eso una partida de
-  Hunter Douglas saldría por debajo de su lista.
-- Listas de precios de Hunter Douglas en el catálogo, importadas de My HunterDouglas, con
-  precio por rango de medida.
+- Listas de precios de Hunter Douglas en el catálogo, leídas de los PDF de My
+  HunterDouglas, con precio de lista y factura por producto y por rango de medida. El
+  motor ya acepta precio fijado por el proveedor; falta el importador y el motor por
+  rango de ancho y alto.
+- Los documentos compartidos entre computadoras, junto con el catálogo, cuando exista la
+  base de datos de la fase 2.
 - Ninguna integración automática con los portales de Hunter Douglas sin acuerdo escrito
   con ellos: se rompe con cada cambio suyo y pone en riesgo la cuenta del distribuidor.
 
@@ -305,7 +327,7 @@ css/app.css           Sistema de diseño completo
 js/
   app.js              Arranque, ruteo por grupos y definición del tutorial
   state.js            Estado global y persistencia local
-  pricing.js          Motor de cálculo de la cotización
+  pricing.js          Motor de cálculo de la cotización, incluida la partida de proveedor
   medidas.js          Notación de obra: lectura, escalera, estimado, importar nota
   ventas.js           Agregados del reporte, semáforo de estado y permisos
   fotos.js            Fotos de obra en IndexedDB, con compresión previa
@@ -313,6 +335,7 @@ js/
   mensajes.js         Plantillas de envío y seguimiento
   asistente.js        Asistente de dudas y contacto de soporte
   portales.js         Portales de Hunter Douglas y precio al cliente desde e-Pedidos
+  documentos.js       PDF del proveedor en IndexedDB: guardar, listar, buscar
   catalog-extra.js    Ampliación del catálogo de demostración
   importer.js         Lectura de Excel y CSV, mapeo de columnas
   catalog-seed.js     Catálogo de demostración
@@ -321,8 +344,8 @@ js/
   tour.js             Tutorial guiado
   ui.js               Componentes compartidos
   format.js           Formato es-MX y utilidades de DOM
-  views/              inicio, medidor, cotizador, catálogo, ventas, registro,
-                      ahorro, servicios, ayuda y ajustes
+  views/              inicio, medidor, cotizador, catálogo, documentos, ventas,
+                      registro, ahorro, servicios, ayuda y ajustes
 manifest.webmanifest  Para instalarla en el teléfono
 assets/icono.svg      Icono de la aplicación
 pruebas.html          157 pruebas: cálculo, importación, buscador, medidas,
